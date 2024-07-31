@@ -22,7 +22,7 @@ class EventConstants:
     MERGED_IDX = 800
     MERGED_FILE_NAME = str(MERGED_IDX) +  '_merged_events.csv'
     WIDE_IDX = 900
-    WIDE_FILE_NAME = str(WIDE_IDX) + '_wide_2021.csv'
+    WIDE_FILE_NAME = str(WIDE_IDX) + '_wide.csv'
 
     MRN_MAX_COUNT = 23
 

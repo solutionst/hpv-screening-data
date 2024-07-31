@@ -1,25 +1,28 @@
 # c. 2024 solutionst.com llc
 # This code is licensed under the MIT license (See LICENSE for details).
 import os
+import sys
 import pandas as pd
 import csv
 import datetime
 import constants
-import events as evt
 
-class Lab2021:
+class Lab2013:
     def __init__(self):
         print("__init__")
+        self.script_directory = os.path.dirname(os.path.abspath(sys.argv[0]))
         # mac
-        self.in_directory = os.path.join('/Volumes', 'KINGSTON', 'original','2021-2023')
-        self.out_directory = os.path.join('/Volumes', 'KINGSTON', 'out', '2021')
+        self.in_directory = os.path.join('/Volumes', 'KINGSTON', 'original','2013-2019', '2013-2019')
+        self.out_directory = os.path.join('/Volumes', 'KINGSTON', 'out', '2013')
         # windows
         # self.in_directory = os.path.join('d:','original','2021-2023')
         # self.out_directory = os.path.join('d:', 'out', '2021')
-        
-        self.in_file_name = os.path.join(self.in_directory, 'hpi10029_cervical_and_Cyto_labresults_2021_to_2023.csv')
+        if not os.path.exists(self.out_directory):
+            os.makedirs(self.out_directory)
+
+        self.in_file_name = os.path.join(self.in_directory, 'hpi10029_cervical_and_cyto_labresults_06052024.csv')
         self.out_file_name = os.path.join(self.out_directory, 'screen_details.csv')
-        self.demographic_file_name = os.path.join(self.in_directory, 'hpi10029_patient_demographics_2021_to_2023.csv')
+        self.demographic_file_name = os.path.join(self.in_directory, 'hpi10029_Patient_demographics_2013_to_2019.csv')
         self.cyto_file_name = os.path.join(self.out_directory, constants.EventConstants.CYTO_FILE_NAME)
         self.hpvdna_file_name = os.path.join(self.out_directory, constants.EventConstants.HPVDNA_FILE_NAME)
         self.followup_file_name = os.path.join(self.out_directory, constants.EventConstants.FOLLOWUP_FILE_NAME)
@@ -29,23 +32,60 @@ class Lab2021:
         self.merged_events_name = os.path.join(self.out_directory, constants.EventConstants.MERGED_FILE_NAME)
         self.wide_file_name = os.path.join(self.out_directory, constants.EventConstants.WIDE_FILE_NAME)
 
-        self.leep_in_file_name = os.path.join(self.in_directory, 'hpi10029_LEEP_Labresults_2021_to_2023.csv')
-        self.colpo_in_file_name = os.path.join(self.in_directory, 'hpi10029_colpo_labresults_2021_to_2023.csv')
+        self.leep_in_file_name = os.path.join(self.in_directory, 'hpi10029_LEEP_labresults.csv')
+        self.colpo_in_file_name = os.path.join(self.in_directory, 'hpi10029_colpo_labresults.csv')
 
-        self.mrn_max_count = 23
+        self.datetime_fmt = '%m/%d/%Y %H:%M'
+        self.date_fmt = '%m/%d/%Y'
+        self.date_fmt_pd = '%Y-%m-%d'
         
+        self.cyto_values = list()
+        self.hpv_values = dict()
         self.mrn_facts = dict()
         self.screening_mrn = set()
 
         self.temp_file_name = os.path.join(self.out_directory, 'temp_screen.csv')
         self.temp_detail_name = os.path.join(self.out_directory, 'temp_screen_details.csv')
 
+    def load_data(self):
+        df_raw = pd.read_csv(self.in_file_name)
+        print(df_raw.shape)
+        self.df = df_raw.drop(columns = ['PatientID', 'EncounterID', 'ACCESSION_NUMBER', 'ORDER_DATE', 'ORDER_NAME', 'OBSERVATION_DATE', 'ActivityDate', 'RESULT_NAME', 'RANGE', 'CLARITY_ORDER_CODE'])
+        # if order_code != 'SPECIMEN' and result_code not in ['CLINF', 'ADEQ', 'GROSS', 'COMMENT', 'COMMENTS']:
+        self.df = self.df.drop(self.df[self.df.ORDER_CODE == 'SPECIMEN'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'CLINF'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'ADEQ'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'GROSS'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'COMMENT'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'COMMENTS'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'TGYN_URL'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'HPVD_URL'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == '88142'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'SPF'].index)
+        self.df = self.df.drop(self.df[self.df.RESULT_CODE == 'TDGYN'].index)
+        self.df = self.df.drop(self.df[self.df.ORDER_CODE == 'GYN'].index)
+        self.df = self.df.drop(self.df[self.df.ORDER_CODE == 'GADD'].index)
+        self.df = self.df.drop(self.df[self.df.ORDER_CODE == 'FNAS'].index)
+        self.df = self.df.drop(self.df[self.df.VALUE == ' DNR'].index)
+        self.df = self.df[~self.df['VALUE'].str.startswith(' http://')]
+        self.df = self.df[~self.df['VALUE'].str.startswith(' https://')]
+        self.df['COLLECTION_DATE'] = pd.to_datetime(self.df['COLLECTION_DATE']).dt.date
+        self.df = self.df.sort_values(['mrn', 'COLLECTION_DATE'], ascending=[True, True])
+
     def sort_detail_and_save(self):
         df = pd.read_csv(self.temp_detail_name)
         df = df.sort_values(['mrn', 'collection_date'], ascending=[True, True])
         df.to_csv(self.out_file_name, index=False)
         return df
-    
+
+    def print_summary(self):
+        print('Summary:')
+        print(self.df.shape)
+        print(self.df.head())
+
+    def save_temp_to_csv(self):
+        self.df.to_csv(self.temp_file_name, index=False)
+
     def determine_study_race(self, source_race):
         result = 'unknown_race'
         if source_race == 'American Indian and Alaska Native':
@@ -86,31 +126,31 @@ class Lab2021:
                     # skip header line
                     line_count += 1
                 else:
-                    mrn = row[2]
-                    s = row[3]
+                    mrn = row[1]
+                    s = row[2]
                     lastname = s if s != 'NULL' else ''
-                    s = row[4]
+                    s = row[3]
                     firstname = s if s != 'NULL' else ''
-                    s = row[5]
+                    s = row[4]
                     middlename = s if s != 'NULL' else ''
-                    dob_str = row[6]
-                    work_date = datetime.datetime.strptime(dob_str, evt.DATETIME_FMT)
+                    dob_str = row[5]
+                    work_date = datetime.datetime.strptime(dob_str, self.datetime_fmt)
                     dob = work_date.date()
                     deceased_date = datetime.date(1900, 1, 1)
-                    dead_str = row[7]
+                    dead_str = row[6]
                     if dead_str not in ('NULL', '00:00.0'):
                         try:
-                            work_date = datetime.datetime.strptime(dead_str, evt.DATE_FMT_PD)
+                            work_date = datetime.datetime.strptime(dead_str, self.datetime_fmt)
                             deceased_date = work_date.date()
                         except:
                             print('dead_str exception: ' + dead_str)
-                    source_race = row[11]
+                    source_race = row[10]
                     study_race = self.determine_study_race(source_race)
-                    ethnicity = row[12]
-                    postalcode = row[19][:5]
-                    homephone = row[20]
-                    mobilephone = row[21]
-                    email = row[22]
+                    ethnicity = row[11]
+                    postalcode = row[18][:5]
+                    homephone = row[19]
+                    mobilephone = row[20]
+                    email = row[21]
 
                     ## 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email'
                     facts = [dob, study_race, source_race, ethnicity, lastname, firstname, middlename, postalcode, homephone, mobilephone, email]
@@ -138,7 +178,7 @@ class Lab2021:
             work = work + '#' + key +': ' + val
         return work
     
-    def determine_results(self, age, cyto_value_list, hpv_value_dict):
+    def determine_results(self, age):
         cyto = 'Unknown'
         hpv = ''
         hpv_other = ''
@@ -147,7 +187,7 @@ class Lab2021:
         screen = 'Screen_Unknown'
         comment = ''
         # cytology encoding
-        for val in cyto_value_list:
+        for val in self.cyto_values:
             if 'ASC-H' in val:
                 cyto = 'ASCH'
                 break
@@ -160,8 +200,35 @@ class Lab2021:
             elif 'Negative for intraepithelial lesion or malignancy' in val:
                 cyto = 'NILM'
                 break
+            elif 'for neoplastic cells: Negative' in val:
+                cyto = 'NILM'
+                break
+            elif 'for neoplastic cells:  Negative.' in val:
+                cyto = 'NILM'
+                break
+            elif 'Atypical glandular cells' in val:
+                cyto = 'AGC'
+                break
+            elif 'Atypical endocervical cells present' in val:
+                cyto = 'AGC'
+                break
+            elif 'High grade squamous intraepithelial lesion' in val:
+                cyto = 'HSIL'
+                break
+            elif 'Squamous epithelial atrophy' in val:
+                cyto = 'NILM'
+                break
+            elif 'No malignant cells identified' in val:
+                cyto = 'NILM'
+                break
+            elif 'Satisfactory for evaluation. Transformation zone present' in val:
+                cyto = 'NILM'
+                break
+            elif 'Unsatisfactory' in val:
+                cyto = 'Unsat'
+                break
         if cyto == 'Unknown':
-            comment = "#".join(self.cyto_value_list)
+            comment = "@".join(self.cyto_values)
         # hpv encoding
         if len(self.hpv_values) > 0:
             hpv_other = self.code_hpv_value('HPVOHR')
@@ -177,6 +244,20 @@ class Lab2021:
                     hpv = 'Neg'
                 else:
                     hpv = ''
+            elif 'HPVDNA' in self.hpv_values:
+                work = self.hpv_values['HPVDNA']
+                if work is None:
+                    hpv = ''
+                elif 'NEGATIVE for HIGH/INTERMEDIATE Risk Type Profile' in work:
+                    hpv = 'Neg'
+                    hpv16 = 'Neg'
+                    hpv18 = 'Neg'
+                    hpv_other = 'Neg'
+                elif 'POSITIVE for HIGH/INTERMEDIATE Risk Profile.' in work:
+                    hpv = 'Pos'
+                    hpv16 = ''
+                    hpv18 = ''
+                    hpv_other = ''
             else:
                 hpv = ''
             if hpv_other == '' or hpv16 == '' or hpv18 == '' or hpv == '':
@@ -188,62 +269,47 @@ class Lab2021:
         # screening result
         # age 30 and over
         if age >= 30:
-            if (hpv16 == 'Pos' or hpv18 == 'Pos'):
+            if cyto == 'NILM' and hpv == 'Neg':
+                screen = 'Normal-5'
+            elif cyto == 'NILM' and hpv == 'Pos':
+                screen = 'Low-1'
+            elif cyto == 'NILM' and hpv == '':
+                screen = 'Normal-3'
+            elif cyto == 'LSIL' and hpv == 'Neg':
+                screen = 'Low-1'
+            elif cyto == 'LSIL' and (hpv == '' or hpv == 'Neg'):
                 screen = 'High'
             elif cyto == 'ASCH':
                 screen = 'High'
-            elif hpv_other == 'Pos' and 'ASC' in cyto:
+            elif cyto == 'HSIL':
                 screen = 'High'
-            elif hpv_other == 'Pos' and cyto != 'NILM':
+            elif cyto == 'AGC':
                 screen = 'High'
-            elif hpv_other == 'Pos' and cyto == "NILM":
-                screen = 'Low-1'
-            elif cyto == 'ASCUS' and hpv == '':
-                screen = 'Low-1'
-            elif hpv == 'Neg' and cyto == 'LSIL':
-                screen = 'Low-3'
-            elif hpv == 'Neg' and cyto == 'ASCUS':
-                screen = 'Normal-5'
-            elif hpv == 'Neg' and cyto == 'NILM':
-                screen = 'Normal-5'
-            elif cyto == 'Unknown' and hpv == 'Neg':
-                screen = 'Unsat-HPV-neg'
-            elif cyto == 'NILM' and hpv == '':
-                screen = 'Normal-3'
-            elif cyto == 'LSIL' and hpv == '':
-                screen = 'Low-1'
-            elif cyto == 'Unknown' and hpv == '':
-                screen = 'Unsat'
+            elif cyto == 'AIS':
+                screen = 'High'
         else:
-            if (hpv16 == 'Pos' or hpv18 == 'Pos'):
-                screen = 'High'
-            elif cyto == 'ASCH':
-                screen = 'High'
-            elif cyto == 'NILM' and hpv_other == 'Pos':
-                screen = 'Low-1'
-            elif cyto == 'NILM' and hpv == '':
+            if cyto == 'NILM':
                 screen = 'Normal-3'
-            elif cyto == 'NILM' and hpv == 'Neg':
-                screen = 'Normal-3'
-            elif cyto == 'Unknown' and hpv == '':
-                screen = 'Unsat'
             elif cyto == 'ASCUS' and hpv == 'Neg':
                 screen = 'Normal-3'
             elif cyto == 'ASCUS' and hpv == 'Pos':
-                screen = 'High'
-            elif cyto == 'Unknown' and hpv == 'Neg':
-                screen = 'Unsat-HPV-neg'
+                screen = 'Low-1'
             elif cyto == 'LSIL':
                 screen = 'Low-1'
-            elif cyto == 'ASCUS' and hpv == '':
-                screen = 'Low-1'
-            elif cyto == 'Unknown' and hpv == 'Pos':
-                screen = 'Low-1'
+            elif cyto == 'ASCH':
+                screen = 'High'
+            elif cyto == 'HSIL':
+                screen = 'High'
+            elif cyto == 'AGC':
+                screen = 'High'
+            elif cyto == 'AIS':
+                screen = 'High'
                 
         return cyto, hpv, hpv_other, hpv16, hpv18, screen, comment
 
     def choose_hpv_value(self, old_val, new_val):
-        # print(f'choose_hpv_value called with old {old_val} and new {new_val}')
+        # if 'etected' not in old_val:
+        #     print(f'choose_hpv_value called with old {old_val} and new {new_val}')
         if new_val.strip() == 'Detected':
             return new_val
         if old_val.strip().startswith('Invalid'):
@@ -255,24 +321,34 @@ class Lab2021:
         if mrn_for_row not in self.screening_mrn:
             self.screening_mrn.add(mrn_for_row)
         last_date_str = last_row[1]
-        last_collection_date = datetime.datetime.strptime(last_date_str, evt.DATE_FMT_PD)
+        last_collection_date = datetime.datetime.strptime(last_date_str, self.date_fmt_pd)
         facts = self.mrn_facts[mrn_for_row]
         dob = facts[0]
         age = self.calculate_age(dob, last_collection_date)
         result_code = last_row[3]
         # ('mrn', 'collection_date', 'cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment')
         result_tuple = self.determine_results(age)
-        coll_date_str = datetime.datetime.strftime(last_collection_date, evt.DATE_FMT_PD)
-        dob_str = datetime.datetime.strftime(dob, evt.DATE_FMT_PD)
+        coll_date_str = datetime.datetime.strftime(last_collection_date, self.date_fmt)
+        dob_str = datetime.datetime.strftime(dob, self.date_fmt)
         result_row = (mrn_for_row, coll_date_str, result_tuple[0], result_tuple[1], result_tuple[2], result_tuple[3], \
                         result_tuple[4], result_tuple[5], dob_str, age, result_tuple[6])
         csv_writer.writerow(result_row)
+        # clear collection buckets
+        self.cyto_values.clear()
+        self.hpv_values.clear()
+    
+    def add_cyto_value(self, value):
+        if 'The specimen has been received and the requested test will be ordered' in value:
+            return
+        if 'RECEIVED' == value.upper():
+            return
+        if 'Performing Site:' in value:
+            return
+        self.cyto_values.append(value)
 
     def summarize_results(self):
         print("summarize_results")
         line_count = 0
-        cyto_value_list = list()
-        hpv_value_dict = dict()
         with open(self.temp_file_name, 'r', encoding='utf-8') as f:
             with open (self.temp_detail_name, 'w', newline='', encoding='utf-8') as out:
                 out_writer = csv.writer(out, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -291,20 +367,20 @@ class Lab2021:
                         line_count += 1
                         mrn = row[0]
                         date_str = row[1]
-                        collection_date = datetime.datetime.strptime(date_str, evt.DATE_FMT_PD)
+                        collection_date = datetime.datetime.strptime(date_str, self.date_fmt_pd)
                         order_code = row[2]
                         result_code = row[3]
                         value = row[4]
+                        if 'SEE TEXT' in value.upper():
+                            value = row[5]
                         if mrn != last_mrn or collection_date != last_date:
                             if last_mrn != '':
                                 # new patient or date - output values
                                 self.output_row(last_mrn, last_row, out_writer)
-                                cyto_value_list.clear()
-                                hpv_value_dict.clear()
                             last_mrn = mrn
                             last_date = collection_date
-                        if order_code in ['TGYNS', 'TDGYNS', 'CYTONG']:
-                            cyto_value_list.append(value.strip())
+                        if order_code in ['TGYNS', 'TDGYNS', 'CYTONG', 'TGYN']:
+                            self.add_cyto_value(value.strip())
                         elif order_code == 'HPVDNA':
                             if result_code not in self.hpv_values:
                                 self.hpv_values[result_code] = value.strip()
@@ -359,8 +435,8 @@ class Lab2021:
                         mrn = row[0]
                         if mrn in self.screening_mrn:
                             date_str = row[5]
-                            the_date = datetime.datetime.strptime(date_str, evt.DATETIME_FMT).date()
-                            result_date = datetime.datetime.strftime(the_date, evt.DATE_FMT_PD)
+                            the_date = datetime.datetime.strptime(date_str, self.datetime_fmt).date()
+                            result_date = datetime.datetime.strftime(the_date, self.date_fmt)
                             tuple = (mrn, result_date, event_idx, event_name, 'performed')
                             out_writer.writerow(tuple)
         print(f'Processed {event_name} for {line_count} lines.')
@@ -384,7 +460,7 @@ class Lab2021:
 
     def make_wide_header(self):
         r = ['mrn', 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email']
-        for i in range(self.mrn_max_count):
+        for i in range(constants.EventConstants.MRN_MAX_COUNT):
             t = 'date_' + str(i + 1).zfill(2)
             r.append(t)
             t = 'event_' + str(i + 1).zfill(2)
@@ -436,9 +512,9 @@ class Lab2021:
         print("main")
         self.make_mrn_facts()
 
-        self.df = evt.Events.load_data_to_df(self.in_file_name)
-        evt.Events.print_summary(self.df)
-        evt.Events.save_temp_to_csv(self.df, self.temp_file_name)
+        self.load_data()
+        self.print_summary()
+        self.save_temp_to_csv()
         self.summarize_results()
         detail_df = self.sort_detail_and_save()
         self.create_lab_event_files(detail_df)
@@ -449,5 +525,5 @@ class Lab2021:
         exit()
 
 if __name__ == '__main__':
-    worker = Lab2021()
+    worker = Lab2013()
     worker.main()
