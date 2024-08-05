@@ -1,6 +1,7 @@
 # c. 2024 solutionst.com llc
 # This code is licensed under the MIT license (See LICENSE for details).
 class EventConstants:
+
     DOB_IDX = 100
     DOB_NAME = 'dob_event'
     DOB_FILE_NAME = str(DOB_IDX) + '_' + DOB_NAME + '.csv'
@@ -23,7 +24,5 @@ class EventConstants:
     MERGED_FILE_NAME = str(MERGED_IDX) +  '_merged_events.csv'
     WIDE_IDX = 900
     WIDE_FILE_NAME = str(WIDE_IDX) + '_wide.csv'
-
-    MRN_MAX_COUNT = 23
 
     EVENT_HEADER_LIST = ['mrn','date', 'event_idx', 'event_name', 'result']
