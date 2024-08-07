@@ -18,6 +18,18 @@ class Process2021(ProcessEvents):
         # self.out_directory = os.path.join('d:', 'out', '2021')
         
         self.in_file_name = os.path.join(self.in_directory, 'hpi10029_cervical_and_Cyto_labresults_2021_to_2023.csv')
+        self.demo_mrn = 2
+        self.demo_lastname = 3
+        self.demo_firstname = 4
+        self.demo_middlename = 5
+        self.demo_dob = 6
+        self.demo_deceased_date = 7
+        self.demo_source_race = 11
+        self.demo_ethnicity = 12
+        self.demo_postalcode = 19
+        self.demo_homephone = 20
+        self.demo_mobilephone = 21
+        self.demo_email = 22
         self.out_file_name = os.path.join(self.out_directory, 'screen_details.csv')
         self.demographic_file_name = os.path.join(self.in_directory, 'hpi10029_patient_demographics_2021_to_2023.csv')
         self.cyto_file_name = os.path.join(self.out_directory, constants.EventConstants.CYTO_FILE_NAME)
@@ -32,7 +44,7 @@ class Process2021(ProcessEvents):
         self.leep_in_file_name = os.path.join(self.in_directory, 'hpi10029_LEEP_Labresults_2021_to_2023.csv')
         self.colpo_in_file_name = os.path.join(self.in_directory, 'hpi10029_colpo_labresults_2021_to_2023.csv')
 
-        self.mrn_max_count = 23
+        self.mrn_max_count = 0
         
         self.mrn_facts = dict()
         self.screening_mrn = set()
@@ -147,8 +159,8 @@ class Process2021(ProcessEvents):
  
     def main(self):
         print("main")
-        self.make_mrn_facts()
 
+        self.make_mrn_facts()
         self.df = self.load_data_to_df(self.in_file_name)
         self.print_summary(self.df)
         self.save_temp_to_csv(self.df, self.temp_file_name)
@@ -159,6 +171,7 @@ class Process2021(ProcessEvents):
         self.process_followup_events(self.colpo_in_file_name, self.colpo_file_name, constants.EventConstants.COLPO_IDX, constants.EventConstants.COLPO_NAME)
         self.consolidate_and_sort()
         self.create_wide_file()
+
         exit()
 
 if __name__ == '__main__':

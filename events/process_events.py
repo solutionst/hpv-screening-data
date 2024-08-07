@@ -80,8 +80,6 @@ class ProcessEvents(object):
                                    ['hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'cyto_result', 'dob', 'age', 'comment'], \
                                     constants.EventConstants.FOLLOWUP_NAME, constants.EventConstants.FOLLOWUP_IDX, \
                                     constants.EventConstants.FOLLOWUP_NAME, self.followup_file_name)
-
-    
  
     def make_mrn_facts(self):
         line_count = 0
@@ -93,31 +91,31 @@ class ProcessEvents(object):
                     # skip header line
                     line_count += 1
                 else:
-                    mrn = row[2]
-                    s = row[3]
+                    mrn = row[self.demo_mrn]
+                    s = row[self.demo_lastname]
                     lastname = s if s != 'NULL' else ''
-                    s = row[4]
+                    s = row[self.demo_firstname]
                     firstname = s if s != 'NULL' else ''
-                    s = row[5]
+                    s = row[self.demo_middlename]
                     middlename = s if s != 'NULL' else ''
-                    dob_str = row[6]
+                    dob_str = row[self.demo_dob]
                     work_date = datetime.datetime.strptime(dob_str, ProcessEvents.DATETIME_FMT)
                     dob = work_date.date()
                     deceased_date = datetime.date(1900, 1, 1)
-                    dead_str = row[7]
+                    dead_str = row[self.demo_deceased_date]
                     if dead_str not in ('NULL', '00:00.0'):
                         try:
                             work_date = datetime.datetime.strptime(dead_str, evt.DATE_FMT_PD)
                             deceased_date = work_date.date()
                         except:
                             print('dead_str exception: ' + dead_str)
-                    source_race = row[11]
+                    source_race = row[self.demo_source_race]
                     study_race = self.determine_study_race(source_race)
-                    ethnicity = row[12]
-                    postalcode = row[19][:5]
-                    homephone = row[20]
-                    mobilephone = row[21]
-                    email = row[22]
+                    ethnicity = row[self.demo_ethnicity]
+                    postalcode = row[self.demo_postalcode][:5]
+                    homephone = row[self.demo_homephone]
+                    mobilephone = row[self.demo_mobilephone]
+                    email = row[self.demo_email]
 
                     ## 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email'
                     facts = [dob, study_race, source_race, ethnicity, lastname, firstname, middlename, postalcode, homephone, mobilephone, email]
@@ -203,6 +201,15 @@ class ProcessEvents(object):
                         result_tuple[4], result_tuple[5], dob_str, age, result_tuple[6])
         csv_writer.writerow(result_row)
 
+    def add_cyto_value(self, value, cyto_value_list):
+        if 'The specimen has been received and the requested test will be ordered' in value:
+            return
+        if 'RECEIVED' == value.upper():
+            return
+        if 'Performing Site:' in value:
+            return
+        cyto_value_list.append(value)
+
     def summarize_results(self):
         print("summarize_results")
         line_count = 0
@@ -230,6 +237,8 @@ class ProcessEvents(object):
                         order_code = row[2]
                         result_code = row[3]
                         value = row[4]
+                        if 'SEE TEXT' in value.upper():
+                            value = row[5]
                         if mrn != last_mrn or collection_date != last_date:
                             if last_mrn != '':
                                 # new patient or date - output values
@@ -238,8 +247,8 @@ class ProcessEvents(object):
                                 hpv_value_dict.clear()
                             last_mrn = mrn
                             last_date = collection_date
-                        if order_code in ['TGYNS', 'TDGYNS', 'CYTONG']:
-                            cyto_value_list.append(value.strip())
+                        if order_code in ['TGYNS', 'TDGYNS', 'CYTONG', 'TGYN']:
+                            self.add_cyto_value(value.strip(), cyto_value_list)
                         elif order_code == 'HPVDNA':
                             if result_code not in hpv_value_dict:
                                 hpv_value_dict[result_code] = value.strip()
@@ -247,13 +256,13 @@ class ProcessEvents(object):
                                 old_val = hpv_value_dict[result_code]
                                 if old_val != value:
                                     hpv_value_dict[result_code] = self.choose_hpv_value(old_val, value)
-                                    # print(f'resolved result code value at line {line_count} to {hpv_value_dict[result_code]}')
+                                    # print(f'resolved result code value at line {line_count} to {self.hpv_values[result_code]}')
                         else:
                             print(f'unexpected order_code {order_code} for {mrn}')
                         last_row = row
                 self.output_row(last_mrn, last_row, out_writer, cyto_value_list, hpv_value_dict)
             print(f'Processed {line_count} screened lines.')
-    
+
     def process_followup_events(self, in_file_name, out_file_name, event_idx, event_name):
         line_count = 0
         with open(in_file_name, 'r') as f:
@@ -292,6 +301,9 @@ class ProcessEvents(object):
         df.to_csv(self.merged_events_name, index = False)
         work = df.groupby(['mrn']).size().reset_index(name='counts')
         print(work[['counts']].describe())
+        print('foobar')
+        self.mrn_max_count = work[['counts']].max()['counts']
+        print(self.mrn_max_count)
 
     def make_wide_header(self):
         r = ['mrn', 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email']
