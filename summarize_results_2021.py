@@ -47,7 +47,7 @@ class Filter:
             else:
                 return ''
     
-    def make_hpv_comment(self):
+    def make_dict_comment(self):
         work = ''
         for key in self.hpv_values:
             val = self.hpv_values[key]
@@ -96,7 +96,7 @@ class Filter:
             else:
                 hpv = ''
             if hpv_other == '' or hpv16 == '' or hpv18 == '' or hpv == '':
-                hpv_comment = self.make_hpv_comment()
+                hpv_comment = self.make_dict_comment()
                 comment = comment + hpv_comment
         else:
             comment = comment + '#No HPV results present'

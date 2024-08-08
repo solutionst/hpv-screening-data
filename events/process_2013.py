@@ -58,7 +58,7 @@ class Process2013(ProcessEvents):
         self.temp_file_name = os.path.join(self.out_directory, 'temp_screen.csv')
         self.temp_detail_name = os.path.join(self.out_directory, 'temp_screen_details.csv')
 
-    def determine_results(self, age, cyto_value_list, hpv_value_dict):
+    def determine_results(self, mrn, age, cyto_value_list, hpv_value_dict):
         cyto = 'Unknown'
         hpv = ''
         hpv_other = ''
@@ -66,47 +66,61 @@ class Process2013(ProcessEvents):
         hpv18 = ''
         screen = 'Screen_Unknown'
         comment = ''
-        # cytology encoding
+        # transformation zone
+        t_zone_present = True
         for val in cyto_value_list:
-            if 'ASC-H' in val:
-                cyto = 'ASCH'
+            if 'zone absent' in val:
+                t_zone_present = False
                 break
-            elif 'ASC-US' in val:
-                cyto = 'ASCUS'
-                break
-            elif 'Low grade squamous intraepithelial lesion' in val:
-                cyto = 'LSIL'
-                break
-            elif 'Negative for intraepithelial lesion or malignancy' in val:
-                cyto = 'NILM'
-                break
-            elif 'for neoplastic cells: Negative' in val:
-                cyto = 'NILM'
-                break
-            elif 'for neoplastic cells:  Negative.' in val:
-                cyto = 'NILM'
-                break
-            elif 'Atypical glandular cells' in val:
-                cyto = 'AGC'
-                break
-            elif 'Atypical endocervical cells present' in val:
-                cyto = 'AGC'
-                break
-            elif 'High grade squamous intraepithelial lesion' in val:
-                cyto = 'HSIL'
-                break
-            elif 'Squamous epithelial atrophy' in val:
-                cyto = 'NILM'
-                break
-            elif 'No malignant cells identified' in val:
-                cyto = 'NILM'
-                break
-            elif 'Satisfactory for evaluation. Transformation zone present' in val:
-                cyto = 'NILM'
-                break
-            elif 'Unsatisfactory' in val:
-                cyto = 'Unsat'
-                break
+        if len(cyto_value_list) == 1 and 'RECEIVED' in cyto_value_list[0].upper():
+            cyto = 'NotReported'
+        elif len(cyto_value_list) == 0:
+            cyto = 'NoCyto'
+        else:
+            # cytology encoding
+            for val in cyto_value_list:
+                if 'ASC-H' in val:
+                    cyto = 'ASCH'
+                    break
+                elif 'Atypical squamous cells of undetermined significance':
+                    cyto = 'ASCUS'
+                    break
+                elif 'ASC-US' in val:
+                    cyto = 'ASCUS'
+                    break
+                elif 'Low grade squamous intraepithelial lesion' in val:
+                    cyto = 'LSIL'
+                    break
+                elif 'Negative for intraepithelial lesion or malignancy' in val:
+                    cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+                    break
+                elif 'for neoplastic cells: Negative' in val:
+                    cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+                    break
+                elif 'for neoplastic cells:  Negative.' in val:
+                    cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+                    break
+                elif 'Atypical glandular cells' in val:
+                    cyto = 'AGC'
+                    break
+                elif 'Atypical endocervical cells present' in val:
+                    cyto = 'AGC'
+                    break
+                elif 'High grade squamous intraepithelial lesion' in val:
+                    cyto = 'HSIL'
+                    break
+                elif 'Squamous epithelial atrophy' in val:
+                    cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+                    break
+                elif 'No malignant cells identified' in val:
+                    cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+                    break
+                elif 'Satisfactory for evaluation. Transformation zone present' in val:
+                    cyto = 'NILM'
+                    break
+                elif 'Unsatisfactory' in val:
+                    cyto = 'Unsat'
+                    break
         if cyto == 'Unknown':
             comment = "@".join(cyto_value_list)
         # hpv encoding
@@ -141,63 +155,83 @@ class Process2013(ProcessEvents):
             else:
                 hpv = ''
             if hpv_other == '' or hpv16 == '' or hpv18 == '' or hpv == '':
-                hpv_comment = self.make_hpv_comment(hpv_value_dict)
+                hpv_comment = self.make_dict_comment(hpv_value_dict)
                 comment = comment + hpv_comment
         else:
             comment = comment + '#No HPV results present'
 
         # screening result
-        # age 30 and over
-        if age >= 30:
-            if cyto == 'NILM' and hpv == 'Neg':
-                screen = 'Normal-5'
-            elif cyto == 'Unsat':
-                screen = 'Censored'
+        # under 30
+        if age < 30:
+            if cyto == 'AGC':
+                screen = 'High'
+            elif cyto == 'ASCH':
+                screen = 'High'
+            elif cyto == 'HSIL':
+                screen = 'High'
+            elif cyto == 'ASCUS' and hpv == 'Pos':
+                screen = 'High'
+            elif cyto == 'ASCUS' and hpv == 'Neg':
+                screen = 'Normal-3'
+            elif cyto == 'ASCUS' and hpv == '':
+                screen = 'Low-1'
+            elif cyto == 'LSIL' and hpv == '':
+                screen = 'Low-1'
+            elif cyto == 'LSIL' and hpv == 'Pos':
+                screen = 'Low-1'
+            elif cyto == 'LSIL' and hpv == 'Neg':
+                screen = 'Normal-3'
             elif cyto == 'NILM' and hpv == 'Pos':
                 screen = 'Low-1'
-            elif cyto == 'NILM' and hpv == '':
+            elif cyto == 'NILM' and hpv == 'Neg':
                 screen = 'Normal-3'
-            elif cyto == 'LSIL' and hpv == 'Neg':
-                screen = 'Low-1'
-            elif cyto == 'ASCUS' and hpv == 'Neg':
-                screen = 'Normal-5'
-            elif cyto == 'ASCUS' and hpv == 'Pos':
-                screen = 'Ask'
-            elif cyto == 'ASCUS' and hpv == '':
-                screen = 'Normal-5'
-            elif cyto == 'LSIL' and (hpv == '' or hpv == 'Pos'):
-                screen = 'High'
-            elif cyto == 'ASCH':
-                screen = 'High'
-            elif cyto == 'HSIL':
-                screen = 'High'
-            elif cyto == 'AGC':
-                screen = 'High'
-            elif cyto == 'AIS':
-                screen = 'High'
-            elif cyto == 'Unsat' and hpv == 'Neg':
-                screen = 'Censored'
-            elif cyto == 'Unsat' and hpv == '':
-                screen = 'Censored'
-        else:
-            if cyto == 'NILM':
+            elif cyto == 'NILM' and hpv == '':
                 screen = 'Normal-3'
             elif cyto == 'Unsat':
                 screen = 'Censored'
-            elif cyto == 'ASCUS' and hpv == 'Neg':
-                screen = 'Normal-3'
-            elif cyto == 'ASCUS' and hpv == 'Pos':
-                screen = 'Low-1'
-            elif cyto == 'LSIL':
-                screen = 'Low-1'
+            elif cyto == 'NotReported':
+                screen = 'Censored'
+            elif cyto == 'NoCyto':
+                screen = 'Censored'
+        else:
+            if cyto == 'Unsat':
+                screen = 'Censored'
+            elif cyto == 'NotReported':
+                screen = 'Censored'
+            elif cyto == 'NoCyto':
+                screen = 'Censored'
+            elif cyto == 'AGC':
+                screen = 'High'
             elif cyto == 'ASCH':
                 screen = 'High'
             elif cyto == 'HSIL':
                 screen = 'High'
-            elif cyto == 'AGC':
+            elif cyto == 'LSIL' and hpv == '':
                 screen = 'High'
-            elif cyto == 'AIS':
+            elif cyto == 'LSIL' and hpv == 'Neg':
+                screen = 'Low-1'
+            elif cyto == 'LSIL' and hpv == 'Pos':
                 screen = 'High'
+            if cyto.startswith('NILM') and (hpv16 == 'Pos' or hpv18 == 'Pos'):
+                screen = 'High'
+            if cyto.startswith('NILM') and hpv == 'Pos':
+                screen = 'High'
+            elif cyto.startswith('NILM') and (hpv_other == 'Pos'):
+                screen = 'Low-1'
+            elif cyto == 'NILM' and hpv == 'Neg':
+                screen = 'Normal-5'
+            elif cyto == 'NILM' and hpv == '':
+                screen = 'Normal-5'
+            elif cyto == 'NILM-NOTZ' and hpv == 'Neg':
+                screen = 'Normal-3'
+            elif cyto == 'NILM-NOTZ' and hpv == '':
+                screen = 'Normal-3'
+            elif cyto == 'ASCUS' and hpv == 'Pos':
+                screen = 'High'
+            elif cyto == 'ASCUS' and hpv == 'Neg':
+                screen = 'Normal-3'
+            elif cyto == 'ASCUS' and hpv == '':
+                screen = 'Low-1'
                 
         return cyto, hpv, hpv_other, hpv16, hpv18, screen, comment
 

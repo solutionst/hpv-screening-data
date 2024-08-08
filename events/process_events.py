@@ -6,6 +6,8 @@ import pandas as pd
 import csv
 import datetime
 import constants
+import logging
+import json
 
 class ProcessEvents(object):
     
@@ -16,7 +18,42 @@ class ProcessEvents(object):
 
     def __init__(self):
         print ('Event.__init__')
+    
+    def log_create(self):
+        # inspired by https://stackoverflow.com/questions/19765139/what-is-the-proper-way-to-do-logging-to-a-csv-file
+        try:
+            os.remove(self.log_file_name)
+        except OSError:
+            pass
+        # create logger
+        self.lgr = logging.getLogger('mrn')
+        self.lgr.setLevel(logging.DEBUG) # log all escalated at and above DEBUG
+        # add a file handler
+        fh = logging.FileHandler(self.log_file_name)
+        fh.setLevel(logging.DEBUG) # ensure all messages are logged to file
+
+        # create a formatter and set the formatter for the handler.
+        # frmt = logging.Formatter('%(asctime)s,%(name)s,%(levelname)s,%(message)s')
+        frmt = logging.Formatter('%(asctime)s,%(name)s,%(levelname)s,%(message)s')
+        fh.setFormatter(frmt)
+
+        # add the Handler to the logger
+        self.lgr.addHandler(fh)
+
+        # You can now start issuing logging statements in your code
+        self.lgr.debug('a debug message 2')
  
+    def log_mrn_info(self, mrn, message):
+        log_msg = "{},{}".format(mrn, message)
+        self.lgr.info(log_msg)
+
+    def log_mrn_error(self, mrn, message):
+        log_msg = "{},{}".format(mrn, message)
+        self.lgr.error(log_msg)
+        
+    def log_shutdown(self):
+        logging.shutdown()
+
     def determine_study_race(self, source_race):
         result = 'unknown_race'
         if source_race == 'American Indian and Alaska Native':
@@ -52,14 +89,14 @@ class ProcessEvents(object):
         return result
     
     def sort_detail_and_save(self):
-        df = pd.read_csv(self.temp_detail_name)
+        df = pd.read_csv(self.screen_file_20)
         df = df.sort_values(['mrn', 'collection_date'], ascending=[True, True])
-        df.to_csv(self.out_file_name, index=False)
+        df.to_csv(self.screen_file_20, index=False)
         return df
 
     def create_one_event_file(self, df, drop_list, result_field, event_index, event_name, save_file_name):
         work = df.drop(columns = drop_list)
-        work.rename(columns = {'collection_date':'date', result_field:'result'}, inplace = True)
+        work.rename(columns = {'COLLECTION_DATE':'date', result_field:'result'}, inplace = True)
         work['event_idx'] = event_index
         work['event_name'] = event_name
         work2 = work[constants.EventConstants.EVENT_HEADER_LIST]
@@ -125,13 +162,22 @@ class ProcessEvents(object):
     def load_data_to_df(self, in_file_name):
         df_raw = pd.read_csv(in_file_name)
         print(df_raw.shape)
-        df_raw = df_raw.drop(columns = ['PatientID', 'EncounterID', 'ACCESSION_NUMBER', 'ORDER_DATE', 'ORDER_NAME', 'OBSERVATION_DATE', 'ActivityDate', 'RESULT_NAME', 'RANGE', 'CLARITY_ORDER_CODE'], errors='ignore')
+        df_raw = df_raw[~df_raw['VALUE'].str.startswith(' http://')]
+        df_raw = df_raw[~df_raw['VALUE'].str.startswith(' https://')]
+        print(df_raw.shape)
+        if '2021-2023' in in_file_name:
+            df_raw = df_raw.drop(columns = ['PatientID', 'EncounterID', 'ORDER_DATE', 'ORDER_NAME', 'OBSERVATION_DATE', 'ActivityDate', 'RESULT_NAME', 'RANGE'])
+        else:
+            df_raw = df_raw.drop(columns = ['PatientID', 'EncounterID', 'ORDER_DATE', 'ORDER_NAME', 'OBSERVATION_DATE', 'ActivityDate', 'RESULT_NAME', 'RANGE', 'CLARITY_ORDER_CODE'])
+        df_raw['COLLECTION_DATE'] = pd.to_datetime(df_raw['COLLECTION_DATE'], format=ProcessEvents.DATETIME_FMT).dt.date
+        df_raw = df_raw[['mrn', 'COLLECTION_DATE', 'ACCESSION_NUMBER', 'ORDER_CODE', 'RESULT_CODE', 'VALUE', 'RESULT_COMMENT']]
+        df_raw = df_raw.sort_values(['mrn', 'ACCESSION_NUMBER', 'COLLECTION_DATE', 'ORDER_CODE', 'RESULT_CODE'], ascending=[True, True, True, True, True])
         df_raw = df_raw.drop(df_raw[df_raw.ORDER_CODE == 'SPECIMEN'].index)
         df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'CLINF'].index)
-        df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'ADEQ'].index)
+        # df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'ADEQ'].index)
         df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'GROSS'].index)
         df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'COMMENT'].index)
-        df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'COMMENTS'].index)
+        # df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'COMMENTS'].index)
         df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'TGYN_URL'].index)
         df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == 'HPVD_URL'].index)
         df_raw = df_raw.drop(df_raw[df_raw.RESULT_CODE == '88142'].index)
@@ -141,10 +187,7 @@ class ProcessEvents(object):
         df_raw = df_raw.drop(df_raw[df_raw.ORDER_CODE == 'GADD'].index)
         df_raw = df_raw.drop(df_raw[df_raw.ORDER_CODE == 'FNAS'].index)
         df_raw = df_raw.drop(df_raw[df_raw.VALUE == ' DNR'].index)
-        df_raw = df_raw[~df_raw['VALUE'].str.startswith(' http://')]
-        df_raw = df_raw[~df_raw['VALUE'].str.startswith(' https://')]
-        df_raw['COLLECTION_DATE'] = pd.to_datetime(df_raw['COLLECTION_DATE'], format=ProcessEvents.DATETIME_FMT).dt.date
-        df_raw = df_raw.sort_values(['mrn', 'COLLECTION_DATE'], ascending=[True, True])
+        print(df_raw.shape)
         return df_raw
 
     def print_summary(self, df):
@@ -155,35 +198,90 @@ class ProcessEvents(object):
     def save_temp_to_csv(self, df, file_name):
         df.to_csv(file_name, index=False)
 
-    def choose_hpv_value(self, old_val, new_val):
-        # print(f'choose_hpv_value called with old {old_val} and new {new_val}')
-        if new_val.strip() == 'Detected':
-            return new_val
-        if old_val.strip().startswith('Invalid'):
-            return new_val
-        return old_val
-
-    def code_hpv_value(self, key, hpv_value_dict):
-        if key in hpv_value_dict:
-            work = hpv_value_dict[key]
-            if work == 'Detected':
-                return 'Pos'
-            elif work == 'Not detected':
-                return 'Neg'
-            else:
-                return ''
-   
-    def make_hpv_comment(self, hpv_value_dict):
-        work = ''
-        for key in hpv_value_dict:
-            val = hpv_value_dict[key]
-            work = work + '#' + key +': ' + val
+    def make_dict_comment(self, hpv_value_dict):
+        work = json.dumps(hpv_value_dict)
         return work
     
-    def determine_results(age, cyto_value_list, hpv_value_dict):
-        return []
+    def test_cyto_ok(self, cyto_value_dict):
+        if len(cyto_value_dict) <= 1:
+            return True
+        # try to remove unsat accessions from dictionary and re-test
+        keys = cyto_value_dict.keys()
+        delete_keys = list()
+        for accession_key in keys:
+            access_dict = cyto_value_dict[accession_key]
+            for key, val in access_dict.items():
+                if 'UNSAT' in val.upper():
+                    delete_keys.append(accession_key)
+                    break
+        for del_key in delete_keys:
+            del cyto_value_dict[del_key]
+        if len(cyto_value_dict) <= 1:
+            return True
+        return False 
     
-    def output_row(self, mrn_for_row, last_row, csv_writer, cyto_value_list, hpv_value_dict):
+    def test_hpv_ok(self, hpv_value_dict):
+        if len(hpv_value_dict) <= 1:
+            return True
+        # look for This specimen source has not been validated in a comment and remove accession
+        # log MRN as warnging
+        return False
+    
+    def test_results_ok(self, mrn, cyto_value_dict, hpv_value_dict):
+        cyto_ok = self.test_cyto_ok(cyto_value_dict)
+        hpv_ok = self.test_hpv_ok(hpv_value_dict)
+        if cyto_ok and hpv_ok:
+            return True
+        else:
+            msg = ''
+            if not cyto_ok:
+                msg += '-cyto values bad'
+            if not hpv_ok:
+                msg += '-hpv values bad'
+            self.log_mrn_error(mrn, msg)
+            return False
+
+    def code_hpv_value(self, mrn, key, hpv_value_dict):
+        if len(hpv_value_dict) == 0:
+            self.log_mrn_info(mrn, 'No HPV data')
+            return ''
+        elif len(hpv_value_dict) == 1:
+            only_key = list(hpv_value_dict.keys())[0]
+            single_dict = hpv_value_dict[only_key]
+            if key in single_dict:
+                work = single_dict[key]
+                if work == 'Detected':
+                    return 'Pos'
+                elif work == 'Not detected':
+                    return 'Neg'
+                else:
+                    return ''
+        else:
+            self.log_mrn_info(mrn, 'Multiple HPV accessions')
+            return ''
+
+    def code_hpv_result(self, mrn, hpv_value_dict):
+        if len(hpv_value_dict) == 0:
+            self.log_mrn_info(mrn, 'No HPV data')
+            return ''
+        elif len(hpv_value_dict) == 1:
+            only_key = list(hpv_value_dict.keys())[0]
+            single_dict = hpv_value_dict[only_key]
+            if 'HPVR' in single_dict:
+                work = single_dict['HPVR']
+                if work is None:
+                    return ''
+                elif 'High Risk Human Papillomavirus detected' in work:
+                    return 'Pos'
+                elif 'High Risk Human Papillomavirus not detected' in work:
+                    return 'Neg'
+                else:
+                    return ''
+        else:
+            self.log_mrn_info(mrn, 'Multiple HPV accessions - code_hpv_result')
+            return ''
+      
+    def output_row(self, mrn_for_row, last_row, csv_writer, cyto_value_dict, hpv_value_dict):
         # capture the mrn for control of the colpo and leep files
         if mrn_for_row not in self.screening_mrn:
             self.screening_mrn.add(mrn_for_row)
@@ -192,39 +290,56 @@ class ProcessEvents(object):
         facts = self.mrn_facts[mrn_for_row]
         dob = facts[0]
         age = self.calculate_age(dob, last_collection_date)
-        result_code = last_row[3]
-        # ('mrn', 'collection_date', 'cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment')
-        result_tuple = self.determine_results(age, cyto_value_list, hpv_value_dict)
-        coll_date_str = datetime.datetime.strftime(last_collection_date, ProcessEvents.DATE_FMT_PD)
-        dob_str = datetime.datetime.strftime(dob, ProcessEvents.DATE_FMT_PD)
-        result_row = (mrn_for_row, coll_date_str, result_tuple[0], result_tuple[1], result_tuple[2], result_tuple[3], \
-                        result_tuple[4], result_tuple[5], dob_str, age, result_tuple[6])
-        csv_writer.writerow(result_row)
+        # result_code = last_row[3]
+        if self.test_results_ok(mrn_for_row, cyto_value_dict, hpv_value_dict):
+            # ('mrn', 'collection_date', 'cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment')
+            result_tuple = self.determine_results(mrn_for_row, age, cyto_value_dict, hpv_value_dict)
+            coll_date_str = datetime.datetime.strftime(last_collection_date, ProcessEvents.DATE_FMT_PD)
+            dob_str = datetime.datetime.strftime(dob, ProcessEvents.DATE_FMT_PD)
+            result_row = (mrn_for_row, coll_date_str, result_tuple[0], result_tuple[1], result_tuple[2], result_tuple[3], \
+                            result_tuple[4], result_tuple[5], dob_str, age, result_tuple[6])
+            csv_writer.writerow(result_row)
+        else:
+            # handle test failure
+            print('test failed')
 
-    def add_cyto_value(self, value, cyto_value_list):
+    def add_cyto_value(self, accession, result_code, value, cyto_value_dict):
         if 'The specimen has been received and the requested test will be ordered' in value:
             return
         if 'RECEIVED' == value.upper():
             return
         if 'Performing Site:' in value:
             return
-        cyto_value_list.append(value)
+        if accession not in cyto_value_dict:
+            cyto_value_dict[accession] = dict()
+        if result_code not in cyto_value_dict[accession]:
+            cyto_value_dict[accession][result_code] = value.strip()
+        else:
+            print('mrn in error')
+
+    def add_hpv_value(self, accession, result_code, value, hpv_value_dict):
+        if accession not in hpv_value_dict:
+            hpv_value_dict[accession] = dict()
+        if result_code not in hpv_value_dict[accession]:
+            hpv_value_dict[accession][result_code] = value.strip()
+        else:
+            print('mrn in error')
 
     def summarize_results(self):
         print("summarize_results")
         line_count = 0
-        cyto_value_list = list()
+        cyto_value_dict = dict()
         hpv_value_dict = dict()
-        with open(self.temp_file_name, 'r', encoding='utf-8') as f:
-            with open (self.temp_detail_name, 'w', newline='', encoding='utf-8') as out:
+        with open(self.screen_file_10, 'r', encoding='utf-8') as f:
+            with open (self.screen_file_20, 'w', newline='', encoding='utf-8') as out:
                 out_writer = csv.writer(out, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 header = ('mrn', 'collection_date', 'cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment')
                 out_writer.writerow(header)
                 line_count = 0
                 reader = csv.reader(f)
                 last_mrn = ''
-                last_encounter = ''
                 last_date = datetime.date(1900, 1, 1)
+                last_accession = ''
                 for row in reader:
                     if line_count == 0:
                         # skip header line
@@ -233,34 +348,31 @@ class ProcessEvents(object):
                         line_count += 1
                         mrn = row[0]
                         date_str = row[1]
-                        collection_date = datetime.datetime.strptime(date_str, ProcessEvents.DATE_FMT_PD)
-                        order_code = row[2]
-                        result_code = row[3]
-                        value = row[4]
+                        work_date = datetime.datetime.strptime(date_str, ProcessEvents.DATE_FMT_PD)
+                        collection_date = work_date.date()
+                        accession = row[2]
+                        order_code = row[3]
+                        result_code = row[4]
+                        value = row[5]
                         if 'SEE TEXT' in value.upper():
-                            value = row[5]
-                        if mrn != last_mrn or collection_date != last_date:
+                            value = row[6]
+                        delta = collection_date - last_date
+                        if mrn != last_mrn or delta.days > 14:
                             if last_mrn != '':
                                 # new patient or date - output values
-                                self.output_row(last_mrn, last_row, out_writer, cyto_value_list, hpv_value_dict)
-                                cyto_value_list.clear()
+                                self.output_row(last_mrn, last_row, out_writer, cyto_value_dict, hpv_value_dict)
+                                cyto_value_dict.clear()
                                 hpv_value_dict.clear()
                             last_mrn = mrn
                             last_date = collection_date
                         if order_code in ['TGYNS', 'TDGYNS', 'CYTONG', 'TGYN']:
-                            self.add_cyto_value(value.strip(), cyto_value_list)
+                            self.add_cyto_value(accession, result_code, value.strip(), cyto_value_dict)
                         elif order_code == 'HPVDNA':
-                            if result_code not in hpv_value_dict:
-                                hpv_value_dict[result_code] = value.strip()
-                            else:
-                                old_val = hpv_value_dict[result_code]
-                                if old_val != value:
-                                    hpv_value_dict[result_code] = self.choose_hpv_value(old_val, value)
-                                    # print(f'resolved result code value at line {line_count} to {self.hpv_values[result_code]}')
+                            self.add_hpv_value(accession, result_code, value.strip(), hpv_value_dict)
                         else:
                             print(f'unexpected order_code {order_code} for {mrn}')
                         last_row = row
-                self.output_row(last_mrn, last_row, out_writer, cyto_value_list, hpv_value_dict)
+                self.output_row(last_mrn, last_row, out_writer, cyto_value_dict, hpv_value_dict)
             print(f'Processed {line_count} screened lines.')
 
     def process_followup_events(self, in_file_name, out_file_name, event_idx, event_name):
@@ -286,7 +398,7 @@ class ProcessEvents(object):
         print(f'Processed {event_name} for {line_count} lines.')
         # sort the results
         df = pd.read_csv(out_file_name)
-        df = df.sort_values(['mrn', 'date', 'event_idx'], ascending=[True, True, True]).drop_duplicates(subset=['mrn', 'date'])
+        df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True]).drop_duplicates(subset=['mrn', 'collection_date'])
         df.to_csv(out_file_name, index=False)
     
     def consolidate_and_sort(self):
@@ -296,7 +408,7 @@ class ProcessEvents(object):
         colpo = pd.read_csv(self.colpo_file_name)
         leep = pd.read_csv(self.leep_file_name)
         df = pd.concat([cyto, hpvdna, followup, colpo, leep])
-        df = df.sort_values(['mrn', 'date', 'event_idx'], ascending=[True, True, True])
+        df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True])
         print(df.head())
         df.to_csv(self.merged_events_name, index = False)
         work = df.groupby(['mrn']).size().reset_index(name='counts')

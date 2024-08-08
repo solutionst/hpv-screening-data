@@ -25,4 +25,4 @@ class EventConstants:
     WIDE_IDX = 900
     WIDE_FILE_NAME = str(WIDE_IDX) + '_wide.csv'
 
-    EVENT_HEADER_LIST = ['mrn','date', 'event_idx', 'event_name', 'result']
+    EVENT_HEADER_LIST = ['mrn','collection_date', 'event_idx', 'event_name', 'result']
