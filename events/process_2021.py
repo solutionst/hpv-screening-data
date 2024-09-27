@@ -35,6 +35,9 @@ class Process2021(ProcessEvents):
         self.demographic_file_name = os.path.join(self.in_directory, 'hpi10029_patient_demographics_2021_to_2023.csv')
         self.cyto_file_name = os.path.join(self.out_directory, constants.EventConstants.CYTO_FILE_NAME)
         self.hpvdna_file_name = os.path.join(self.out_directory, constants.EventConstants.HPVDNA_FILE_NAME)
+        self.hpv18_file_name = os.path.join(self.out_directory, constants.EventConstants.HPV18_FILE_NAME)
+        self.hpv16_file_name = os.path.join(self.out_directory, constants.EventConstants.HPV16_FILE_NAME)
+        self.hpvothr_file_name = os.path.join(self.out_directory, constants.EventConstants.HPVOTHR_FILE_NAME)
         self.followup_file_name = os.path.join(self.out_directory, constants.EventConstants.FOLLOWUP_FILE_NAME)
         self.colpo_file_name = os.path.join(self.out_directory, constants.EventConstants.COLPO_FILE_NAME)
         self.leep_file_name = os.path.join(self.out_directory, constants.EventConstants.LEEP_FILE_NAME)
@@ -44,8 +47,6 @@ class Process2021(ProcessEvents):
 
         self.leep_in_file_name = os.path.join(self.in_directory, 'hpi10029_LEEP_Labresults_2021_to_2023.csv')
         self.colpo_in_file_name = os.path.join(self.in_directory, 'hpi10029_colpo_labresults_2021_to_2023.csv')
-
-        self.mrn_max_count = 0
         
         self.mrn_facts = dict()
         self.screening_mrn = set()

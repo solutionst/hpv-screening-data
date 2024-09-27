@@ -112,6 +112,18 @@ class ProcessEvents(object):
                                    ['cyto_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
                                     constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVDNA_IDX, \
                                     constants.EventConstants.HPVDNA_NAME, self.hpvdna_file_name)
+        self.create_one_event_file(df, \
+                                   ['cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'followup', 'dob', 'age', 'comment'], \
+                                    constants.EventConstants.HPV18_NAME, constants.EventConstants.HPV18_IDX, \
+                                    constants.EventConstants.HPV18_NAME, self.hpv18_file_name)
+        self.create_one_event_file(df, \
+                                   ['cyto_result', 'hpv_other', 'hpvdna_result', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
+                                    constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV16_IDX, \
+                                    constants.EventConstants.HPV16_NAME, self.hpv16_file_name)
+        self.create_one_event_file(df, \
+                                   ['cyto_result', 'hpvdna_result', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
+                                    constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPVOTHR_IDX, \
+                                    constants.EventConstants.HPVOTHR_NAME, self.hpvothr_file_name)
 
         self.create_one_event_file(df, \
                                    ['hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'cyto_result', 'dob', 'age', 'comment'], \
@@ -145,7 +157,8 @@ class ProcessEvents(object):
                             work_date = datetime.datetime.strptime(dead_str, evt.DATE_FMT_PD)
                             deceased_date = work_date.date()
                         except:
-                            print('dead_str exception: ' + dead_str)
+                            # swallow
+                            pass
                     source_race = row[self.demo_source_race]
                     study_race = self.determine_study_race(source_race)
                     ethnicity = row[self.demo_ethnicity]
@@ -299,9 +312,6 @@ class ProcessEvents(object):
             result_row = (mrn_for_row, coll_date_str, result_tuple[0], result_tuple[1], result_tuple[2], result_tuple[3], \
                             result_tuple[4], result_tuple[5], dob_str, age, result_tuple[6])
             csv_writer.writerow(result_row)
-        else:
-            # handle test failure
-            print('test failed')
 
     def add_cyto_value(self, accession, result_code, value, cyto_value_dict):
         if 'The specimen has been received and the requested test will be ordered' in value:
@@ -314,8 +324,6 @@ class ProcessEvents(object):
             cyto_value_dict[accession] = dict()
         if result_code not in cyto_value_dict[accession]:
             cyto_value_dict[accession][result_code] = value.strip()
-        else:
-            print('mrn in error')
 
     def add_hpv_value(self, accession, result_code, value, hpv_value_dict):
         if accession not in hpv_value_dict:
@@ -357,7 +365,7 @@ class ProcessEvents(object):
                         if 'SEE TEXT' in value.upper():
                             value = row[6]
                         delta = collection_date - last_date
-                        if mrn != last_mrn or delta.days > 14:
+                        if mrn != last_mrn or delta.days >constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME:
                             if last_mrn != '':
                                 # new patient or date - output values
                                 self.output_row(last_mrn, last_row, out_writer, cyto_value_dict, hpv_value_dict)
@@ -412,20 +420,39 @@ class ProcessEvents(object):
         print(df.head())
         df.to_csv(self.merged_events_name, index = False)
         work = df.groupby(['mrn']).size().reset_index(name='counts')
-        print(work[['counts']].describe())
-        print('foobar')
-        self.mrn_max_count = work[['counts']].max()['counts']
-        print(self.mrn_max_count)
+        print(work[['counts']].describe(percentiles=[.1, .2, .3, .4, .5, .6, .7, .8, .9, .95]))
 
     def make_wide_header(self):
         r = ['mrn', 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email']
-        for i in range(self.mrn_max_count):
-            t = 'date_' + str(i + 1).zfill(2)
+        for i in range(constants.EventConstants.MAX_WIDE_PATHWAYS):
+            t = 'date_hpv_' + str(i + 1).zfill(2)
             r.append(t)
-            t = 'event_' + str(i + 1).zfill(2)
+            t = 'result_hpv_' + str(i + 1).zfill(2)
             r.append(t)
-            t = 'result_' + str(i + 1).zfill(2)
+            t = 'date_hpv18_' + str(i + 1).zfill(2)
             r.append(t)
+            t = 'result_hpv18_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'date_hpv16_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'result_hpv16_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'date_hpv_othr_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'result_hpv_othr_' + str(i + 1).zfill(2)
+            r.append(t)
+
+            t = 'date_cyto_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'result_cyto_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'triage_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'date_colpo_' + str(i + 1).zfill(2)
+            r.append(t)
+            t = 'date_leep_' + str(i + 1).zfill(2)
+            r.append(t)
+        print(r)
         return r
 
     def output_wide_row(self, writer, mrn, data_list):
@@ -433,6 +460,8 @@ class ProcessEvents(object):
         demo_data = self.mrn_facts[mrn]
         row = row + demo_data
         length = len(data_list)
+        if length > 10:
+            print ('foo')
         for i in range(0, length):
             row = row + data_list[i]
         writer.writerow(row)

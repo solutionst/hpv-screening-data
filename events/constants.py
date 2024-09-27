@@ -11,6 +11,16 @@ class EventConstants:
     HPVDNA_IDX = 300
     HPVDNA_NAME = 'hpvdna_result'
     HPVDNA_FILE_NAME = str(HPVDNA_IDX) +  '_' + HPVDNA_NAME + '.csv'
+    HPV18_IDX = 310
+    HPV18_NAME = 'hpv18'
+    HPV18_FILE_NAME = str(HPV18_IDX) +  '_' + HPVDNA_NAME + '.csv'
+    HPV16_IDX = 320
+    HPV16_NAME = 'hpv16'
+    HPV16_FILE_NAME = str(HPV16_IDX) +  '_' + HPVDNA_NAME + '.csv'
+    HPVOTHR_IDX = 330
+    HPVOTHR_NAME = 'hpv_other'
+    HPVOTHR_FILE_NAME = str(HPVOTHR_IDX) +  '_' + HPVDNA_NAME + '.csv'
+
     FOLLOWUP_IDX = 400
     FOLLOWUP_NAME = 'followup'
     FOLLOWUP_FILE_NAME = str(FOLLOWUP_IDX) +  '_' + FOLLOWUP_NAME + '.csv'
@@ -26,3 +36,7 @@ class EventConstants:
     WIDE_FILE_NAME = str(WIDE_IDX) + '_wide.csv'
 
     EVENT_HEADER_LIST = ['mrn','collection_date', 'event_idx', 'event_name', 'result']
+
+    DELTA_DAYS_CYTO_HPV_SAME = 14
+    MAX_WIDE_PATHWAYS = 10
+
