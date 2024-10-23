@@ -105,30 +105,19 @@ class ProcessEvents(object):
 
     def create_lab_event_files(self, df):
         self.create_one_event_file(df, \
-                                   ['hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
-                                    constants.EventConstants.CYTO_NAME, constants.EventConstants.CYTO_IDX, \
-                                    constants.EventConstants.CYTO_NAME, self.cyto_file_name)
+                                   [constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV18_NAME, 'followup', 'dob', 'age', 'comment'], constants.EventConstants.CYTO_NAME, constants.EventConstants.CYTO_IDX, constants.EventConstants.CYTO_NAME, self.cyto_file_name)
         self.create_one_event_file(df, \
-                                   ['cyto_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
-                                    constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVDNA_IDX, \
-                                    constants.EventConstants.HPVDNA_NAME, self.hpvdna_file_name)
+                                   [constants.EventConstants.CYTO_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV18_NAME, 'followup', 'dob', 'age', 'comment'], constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVDNA_IDX, constants.EventConstants.HPVDNA_NAME, self.hpvdna_file_name)
         self.create_one_event_file(df, \
-                                   ['cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'followup', 'dob', 'age', 'comment'], \
-                                    constants.EventConstants.HPV18_NAME, constants.EventConstants.HPV18_IDX, \
-                                    constants.EventConstants.HPV18_NAME, self.hpv18_file_name)
+                                   [constants.EventConstants.CYTO_NAME, constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPV16_NAME, 'followup', 'dob', 'age', 'comment'], constants.EventConstants.HPV18_NAME, constants.EventConstants.HPV18_IDX, constants.EventConstants.HPV18_NAME, self.hpv18_file_name)
         self.create_one_event_file(df, \
-                                   ['cyto_result', 'hpv_other', 'hpvdna_result', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
-                                    constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV16_IDX, \
-                                    constants.EventConstants.HPV16_NAME, self.hpv16_file_name)
+                                   [constants.EventConstants.CYTO_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPV18_NAME, 'followup', 'dob', 'age', 'comment'], constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV16_IDX, constants.EventConstants.HPV16_NAME, self.hpv16_file_name)
         self.create_one_event_file(df, \
-                                   ['cyto_result', 'hpvdna_result', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment'], \
-                                    constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPVOTHR_IDX, \
-                                    constants.EventConstants.HPVOTHR_NAME, self.hpvothr_file_name)
+                                   [constants.EventConstants.CYTO_NAME, constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV18_NAME, 'followup', 'dob', 'age', 'comment'], \
+                                    constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPVOTHR_IDX, constants.EventConstants.HPVOTHR_NAME, self.hpvothr_file_name)
 
         self.create_one_event_file(df, \
-                                   ['hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'cyto_result', 'dob', 'age', 'comment'], \
-                                    constants.EventConstants.FOLLOWUP_NAME, constants.EventConstants.FOLLOWUP_IDX, \
-                                    constants.EventConstants.FOLLOWUP_NAME, self.followup_file_name)
+                                   [constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV18_NAME, constants.EventConstants.CYTO_NAME, 'dob', 'age', 'comment'], constants.EventConstants.FOLLOWUP_NAME, constants.EventConstants.FOLLOWUP_IDX, constants.EventConstants.FOLLOWUP_NAME, self.followup_file_name)
  
     def make_mrn_facts(self):
         line_count = 0
@@ -305,7 +294,7 @@ class ProcessEvents(object):
         age = self.calculate_age(dob, last_collection_date)
         # result_code = last_row[3]
         if self.test_results_ok(mrn_for_row, cyto_value_dict, hpv_value_dict):
-            # ('mrn', 'collection_date', 'cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment')
+            # ('mrn', 'collection_date', constants.EventConstants.CYTO_NAME, constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV18_NAME, 'followup', 'dob', 'age', 'comment')
             result_tuple = self.determine_results(mrn_for_row, age, cyto_value_dict, hpv_value_dict)
             coll_date_str = datetime.datetime.strftime(last_collection_date, ProcessEvents.DATE_FMT_PD)
             dob_str = datetime.datetime.strftime(dob, ProcessEvents.DATE_FMT_PD)
@@ -341,7 +330,7 @@ class ProcessEvents(object):
         with open(self.screen_file_10, 'r', encoding='utf-8') as f:
             with open (self.screen_file_20, 'w', newline='', encoding='utf-8') as out:
                 out_writer = csv.writer(out, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                header = ('mrn', 'collection_date', 'cyto_result', 'hpvdna_result', 'hpv_other', 'hpv16', 'hpv18', 'followup', 'dob', 'age', 'comment')
+                header = ('mrn', 'collection_date', constants.EventConstants.CYTO_NAME, constants.EventConstants.HPVDNA_NAME, constants.EventConstants.HPVOTHR_NAME, constants.EventConstants.HPV16_NAME, constants.EventConstants.HPV18_NAME, 'followup', 'dob', 'age', 'comment')
                 out_writer.writerow(header)
                 line_count = 0
                 reader = csv.reader(f)
@@ -412,10 +401,15 @@ class ProcessEvents(object):
     def consolidate_and_sort(self):
         cyto = pd.read_csv(self.cyto_file_name)
         hpvdna = pd.read_csv(self.hpvdna_file_name)
+
+        hpv18 = pd.read_csv(self.hpv18_file_name)
+        hpv16 = pd.read_csv(self.hpv16_file_name)
+        hpvothr = pd.read_csv(self.hpvothr_file_name)
+
         followup = pd.read_csv(self.followup_file_name)
         colpo = pd.read_csv(self.colpo_file_name)
         leep = pd.read_csv(self.leep_file_name)
-        df = pd.concat([cyto, hpvdna, followup, colpo, leep])
+        df = pd.concat([cyto, hpvdna, hpv18, hpv16, hpvothr, followup, colpo, leep])
         df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True])
         print(df.head())
         df.to_csv(self.merged_events_name, index = False)
@@ -424,20 +418,16 @@ class ProcessEvents(object):
 
     def make_wide_header(self):
         r = ['mrn', 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email']
+        # headers to match - 
+        # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
         for i in range(constants.EventConstants.MAX_WIDE_PATHWAYS):
             t = 'date_hpv_' + str(i + 1).zfill(2)
             r.append(t)
-            t = 'result_hpv_' + str(i + 1).zfill(2)
-            r.append(t)
-            t = 'date_hpv18_' + str(i + 1).zfill(2)
+            t = 'hpvdna_result_' + str(i + 1).zfill(2)
             r.append(t)
             t = 'result_hpv18_' + str(i + 1).zfill(2)
             r.append(t)
-            t = 'date_hpv16_' + str(i + 1).zfill(2)
-            r.append(t)
             t = 'result_hpv16_' + str(i + 1).zfill(2)
-            r.append(t)
-            t = 'date_hpv_othr_' + str(i + 1).zfill(2)
             r.append(t)
             t = 'result_hpv_othr_' + str(i + 1).zfill(2)
             r.append(t)
@@ -455,15 +445,111 @@ class ProcessEvents(object):
         print(r)
         return r
 
+    def make_result_pathway_dict(self):
+        result = dict()
+        # we must populate the dict first to make sure that the order 
+        # of "list(result.values())" matches the ultimate values going
+        # into the wide results file
+        result['date_hpv'] = ''
+        result[constants.EventConstants.HPVDNA_NAME] = ''
+        result[constants.EventConstants.HPV18_NAME] = ''
+        result[constants.EventConstants.HPV16_NAME] = ''
+        result[constants.EventConstants.HPVOTHR_NAME] = ''
+        result['date_cyto'] = ''
+        result[constants.EventConstants.CYTO_NAME] = ''
+        
+        result[constants.EventConstants.FOLLOWUP_NAME] = ''
+        result['date_leep'] = ''
+        result['date_colpo'] = ''
+        # print('----')
+        # print(list(result.keys()))
+        return result
+    
+    def make_one_pathway(self, mrn, data_list):
+        # mrn,collection_date,event_idx,event_name,result
+        # 19343,2021-06-21,200,cyto_result,NILM
+        work_dict = self.make_result_pathway_dict()
+        data_list_len = len(data_list)
+        if data_list_len == 0:
+            self.log_mrn_info(mrn, 'data_list length 0')
+            return list()
+        first_idx = 0
+        # walk the data list looking for second entry of 'cyto_result'
+        for idx, val in enumerate(data_list):
+            if val[1] == 'cyto_result':
+                first_idx = idx
+                break
+  
+        if first_idx != 0:
+            self.log_mrn_info(mrn, 'bad first_idx')
+            del(data_list[0:first_idx])
+            first_idx = 0
+        entry = data_list[first_idx]
+        if entry[1] != 'cyto_result':
+            self.log_mrn_info(mrn, 'corrected data_list does not start with cyto_result')
+            del(data_list[0:data_list_len])
+            return list()
+        # headers to match - 
+        # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
+        # find the next index of cyto_result
+        next_idx = data_list_len
+        try:
+            next_idx = data_list.index('cyto_result', 1)
+        except ValueError as ve:
+            pass
+        for idx, val in enumerate(data_list):
+            if idx == next_idx:
+                break
+            # print(idx, val)
+            if val[1] == 'cyto_result':
+                work_dict['date_cyto'] = val[0]
+                work_dict[val[1]] = val[2]
+            elif val[1] in ('hpvdna_result', 'hpv18', 'hpv16', 'hpv_other'):
+                work_dict['date_hpv'] = val[0]
+                work_dict[val[1]] = val[2]
+            elif val[1] == 'colpo':
+                work_dict['date_colpo'] = val[0]
+            elif val[1] == 'leep':
+                work_dict['date_leep'] = val[0]
+            elif val[1] == constants.EventConstants.FOLLOWUP_NAME:
+                work_dict[constants.EventConstants.FOLLOWUP_NAME] = val[2]
+            else:
+                print('foo error')
+
+        # work_dict is full - make a result
+        result = list(work_dict.values())
+
+        if next_idx == data_list_len:
+            # data_list has only one cyto result
+            # print('-----')
+            # print(result)
+            del(data_list[0:next_idx])
+            print(data_list)
+            return result
+        else:
+            print('-----========------')
+            print(result)
+            del(data_list[0:next_idx])
+            print(data_list)
+            return result
+        
+        return list()
+    
     def output_wide_row(self, writer, mrn, data_list):
         row = [mrn]
         demo_data = self.mrn_facts[mrn]
         row = row + demo_data
-        length = len(data_list)
-        if length > 10:
-            print ('foo')
-        for i in range(0, length):
-            row = row + data_list[i]
+        data_length = len(data_list)
+        while data_length > 0:
+            pathway = self.make_one_pathway(mrn, data_list)
+            data_length = len(data_list)
+            pathway_len = len(pathway)
+            if pathway_len > 1:
+                # make_one_pathway() will log messages before returning and empty pathway
+                row = row + pathway
+                # for i in range(0, pathway_len):
+                #     row = row + pathway[i]
+        # write the row
         writer.writerow(row)
 
     def create_wide_file(self):

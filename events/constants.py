@@ -13,13 +13,13 @@ class EventConstants:
     HPVDNA_FILE_NAME = str(HPVDNA_IDX) +  '_' + HPVDNA_NAME + '.csv'
     HPV18_IDX = 310
     HPV18_NAME = 'hpv18'
-    HPV18_FILE_NAME = str(HPV18_IDX) +  '_' + HPVDNA_NAME + '.csv'
+    HPV18_FILE_NAME = str(HPV18_IDX) +  '_' + HPV18_NAME + '.csv'
     HPV16_IDX = 320
     HPV16_NAME = 'hpv16'
-    HPV16_FILE_NAME = str(HPV16_IDX) +  '_' + HPVDNA_NAME + '.csv'
+    HPV16_FILE_NAME = str(HPV16_IDX) +  '_' + HPV16_NAME + '.csv'
     HPVOTHR_IDX = 330
     HPVOTHR_NAME = 'hpv_other'
-    HPVOTHR_FILE_NAME = str(HPVOTHR_IDX) +  '_' + HPVDNA_NAME + '.csv'
+    HPVOTHR_FILE_NAME = str(HPVOTHR_IDX) +  '_' + HPVOTHR_NAME + '.csv'
 
     FOLLOWUP_IDX = 400
     FOLLOWUP_NAME = 'followup'
