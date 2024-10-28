@@ -493,10 +493,11 @@ class ProcessEvents(object):
         # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
         # find the next index of cyto_result
         next_idx = data_list_len
-        try:
-            next_idx = data_list.index('cyto_result', 1)
-        except ValueError as ve:
-            pass
+        for idx, val in enumerate(data_list):
+            if idx > 0:
+                if val[1] == 'cyto_result':
+                    next_idx = idx
+                    break
         for idx, val in enumerate(data_list):
             if idx == next_idx:
                 break
@@ -518,31 +519,18 @@ class ProcessEvents(object):
 
         # work_dict is full - make a result
         result = list(work_dict.values())
-
-        if next_idx == data_list_len:
-            # data_list has only one cyto result
-            # print('-----')
-            # print(result)
-            del(data_list[0:next_idx])
-            print(data_list)
-            return result
-        else:
-            print('-----========------')
-            print(result)
-            del(data_list[0:next_idx])
-            print(data_list)
-            return result
-        
-        return list()
+        # shrink the list
+        del(data_list[0:next_idx])
+        return result
     
     def output_wide_row(self, writer, mrn, data_list):
         row = [mrn]
         demo_data = self.mrn_facts[mrn]
         row = row + demo_data
-        data_length = len(data_list)
-        while data_length > 0:
+        pathway_len = len(data_list)
+        while pathway_len > 0:
             pathway = self.make_one_pathway(mrn, data_list)
-            data_length = len(data_list)
+            # data_length = len(data_list)
             pathway_len = len(pathway)
             if pathway_len > 1:
                 # make_one_pathway() will log messages before returning and empty pathway
