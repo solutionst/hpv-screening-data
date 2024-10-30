@@ -47,6 +47,10 @@ class ProcessEvents(object):
         log_msg = "{},{}".format(mrn, message)
         self.lgr.info(log_msg)
 
+    def log_mrn_warn(self, mrn, message):
+        log_msg = "{},{}".format(mrn, message)
+        self.lgr.warn(log_msg)
+
     def log_mrn_error(self, mrn, message):
         log_msg = "{},{}".format(mrn, message)
         self.lgr.error(log_msg)
@@ -158,7 +162,18 @@ class ProcessEvents(object):
 
                     ## 'dob', 'study_race', 'source_race', 'ethnicity', 'lastname', 'firstname', 'middlename', 'postalcode', 'homephone', 'mobilephone', 'email'
                     facts = [dob, study_race, source_race, ethnicity, lastname, firstname, middlename, postalcode, homephone, mobilephone, email]
-                    self.mrn_facts[mrn] = facts
+                    if mrn not in self.mrn_facts:
+                        self.mrn_facts[mrn] = facts
+                    else:
+                        existing = self.mrn_facts[mrn]
+                        existing_string = ' '.join(str(e) for e in existing)
+                        facts_string = ' '.join(str(e) for e in facts)
+                        if existing_string == facts_string:
+                            self.log_mrn_info(mrn, 'minor change in mrn demographic facts')
+                        else:
+                            self.log_mrn_warn(mrn, "mrn facts for output changed")
+                            self.log_mrn_warn(mrn, "existing:  " + existing_string)
+                            self.log_mrn_warn(mrn, "new facts: " + facts_string)
         print(f'Processed make_mrn_facts {line_count} lines.')
       
     def load_data_to_df(self, in_file_name):
