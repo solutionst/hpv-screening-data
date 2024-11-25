@@ -1,0 +1,14 @@
+HPV Screening Data Preparation Code Notes
+15 November 2024
+
+The scripts in this directory process multiple input files containing patient demograpahic information, lab results and procedure results to create an analysis CSV (comma-sepearted values) file suitable for input into a data analysis program. For portability, the scripts are written in the Python language and contain no protected health information.
+
+The "main" scripts driving the data processing are process_2013.py and process_2021.py. The heavy lifting is done by the process_events.py class. The custom code bits in the specific year scripts are related to interpreting the cytology result and the desired screening action. The constants.py file should be adjusted when making platform or even machine changes.
+
+All of the script output is placed into a directory named "out" with a subdirectory corresponding to the year. The important files in the output directory are the 900_wide.csv file with the output dataset and the log.csv file. The log details processing events that may require human attention before using the output data.
+
+The processing steps are:
+
+1. process_mrn_facts() collects a subset of the available demographic facts into a dicitonary structure that is retained in memory for the duration of the script run. The log CSV file may contain notes that MRN (demographic) facts changed and that multiple demographic records are present. The reseearch team will need to will need to examine the changes (usually address informaiton) to determine if a case should be removed from the study. Since there are no date stamps on the demograpahic records, there is no way to correlate a particular address with a particular result.
+
+

@@ -1,4 +1,0 @@
-lab_2021.py
-input: hpi10029_cervical_and_Cyto_labresults_2021_to_2023.csv
-
-output: events_lab_2021.csv
