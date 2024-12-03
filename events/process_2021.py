@@ -136,8 +136,8 @@ class Process2021(ProcessEvents):
             if hpv_other == '' or hpv16 == '' or hpv18 == '' or hpv == '':
                 hpv_comment = self.make_dict_comment(hpv_value_dict)
                 comment = comment + hpv_comment
-        else:
-            self.log_mrn_info(mrn, 'No HPV results present')
+        # else:
+        #     self.log_mrn_info(mrn, 'No HPV results present')
 
         # screening result
         # age under 30

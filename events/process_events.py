@@ -219,7 +219,7 @@ class ProcessEvents(object):
         work = json.dumps(hpv_value_dict)
         return work
     
-    def test_cyto_ok(self, cyto_value_dict):
+    def test_cyto_ok(self, mrn, cyto_value_dict):
         if len(cyto_value_dict) <= 1:
             return True
         # try to remove unsat accessions from dictionary and re-test
@@ -237,16 +237,44 @@ class ProcessEvents(object):
             return True
         return False 
     
-    def test_hpv_ok(self, hpv_value_dict):
+    def test_hpv_ok(self, mrn, hpv_value_dict):
+        result = True
+        force_delete_keys = list()
         if len(hpv_value_dict) <= 1:
-            return True
+            return result
+        else:
+            last_string = ""
+            for accession_key in hpv_value_dict.keys():
+                test_string = json.dumps(hpv_value_dict[accession_key])
+                if 'COMMENTS' in test_string:
+                    # self.log_mrn_info(mrn, 'Removing HPV COMMENTS: ' + test_string)
+                    force_delete_keys.append(accession_key)
+                elif accession_key not in force_delete_keys:
+                    if last_string == "":
+                        last_string = test_string
+                    if last_string != test_string:
+                        self.log_mrn_info(mrn, 'Different HPV test_string: ' + test_string)
+                        result = False
+                        break
+                    last_string = test_string
+                else:
+                    self.log_mrn_error(mrn, "Unexpected hpv_value_dict: " + json.dumps(hpv_value_dict))
+        for del_key in force_delete_keys:
+            del hpv_value_dict[del_key]
+        if result and len(hpv_value_dict) >= 1:
+            delete_keys = list(hpv_value_dict.keys())[1:]
+            for del_key in delete_keys:
+                del hpv_value_dict[del_key] 
+        else:
+            hpv_value_dict.clear()
+
         # look for This specimen source has not been validated in a comment and remove accession
-        # log MRN as warnging
-        return False
+        # log MRN as warning
+        return result
     
     def test_results_ok(self, mrn, cyto_value_dict, hpv_value_dict):
-        cyto_ok = self.test_cyto_ok(cyto_value_dict)
-        hpv_ok = self.test_hpv_ok(hpv_value_dict)
+        cyto_ok = self.test_cyto_ok(mrn, cyto_value_dict)
+        hpv_ok = self.test_hpv_ok(mrn, hpv_value_dict)
         if cyto_ok and hpv_ok:
             return True
         else:
