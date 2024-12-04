@@ -11,8 +11,8 @@ class Process2021(ProcessEvents):
     def __init__(self):
         print("__init__")
         # mac
-        self.in_directory = os.path.join('/Volumes', 'KINGSTON', 'original','2021-2023')
-        self.out_directory = os.path.join('/Volumes', 'KINGSTON', 'out', '2021')
+        self.in_directory = os.path.join('/Volumes', 'KINGSTON', '2021-2023', 'input')
+        self.out_directory = os.path.join('/Volumes', 'KINGSTON', '2021-2023', 'output')
         # windows
         # self.in_directory = os.path.join('d:','original','2021-2023')
         # self.out_directory = os.path.join('d:', 'out', '2021')
