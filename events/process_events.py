@@ -504,40 +504,43 @@ class ProcessEvents(object):
         # print(list(result.keys()))
         return result
     
-    def make_one_pathway(self, mrn, data_list):
+    def make_one_pathway(self, mrn, mutable_data_list):
         # mrn,collection_date,event_idx,event_name,result
         # 19343,2021-06-21,200,cyto_result,NILM
         work_dict = self.make_result_pathway_dict()
-        data_list_len = len(data_list)
-        if data_list_len == 0:
-            self.log_mrn_error(mrn, 'data_list length 0')
+        work_len = len(work_dict)
+        mutable_data_list_len = len(mutable_data_list)
+        if mutable_data_list_len > work_len:
+            self.log_mrn_info(mrn, 'long mutable list: \n' + '\n  '.join(map(str, mutable_data_list)))
+        if mutable_data_list_len == 0:
+            self.log_mrn_error(mrn, 'mutable_data_list length 0')
             return list()
         first_idx = 0
         # walk the data list looking for second entry of 'cyto_result'
-        for idx, val in enumerate(data_list):
+        for idx, val in enumerate(mutable_data_list):
             if val[1] == 'cyto_result':
                 first_idx = idx
                 break
   
         if first_idx != 0:
-            self.log_mrn_info(mrn, 'bad first_idx: ' + json.dumps(data_list))
-            del(data_list[0:first_idx])
+            self.log_mrn_info(mrn, 'bad first_idx: ' + json.dumps(mutable_data_list))
+            del(mutable_data_list[0:first_idx])
             first_idx = 0
-        entry = data_list[first_idx]
+        entry = mutable_data_list[first_idx]
         if entry[1] != 'cyto_result':
-            self.log_mrn_info(mrn, 'corrected data_list does not start with cyto_result')
-            del(data_list[0:data_list_len])
+            self.log_mrn_info(mrn, 'corrected mutable_data_list does not start with cyto_result')
+            del(mutable_data_list[0:mutable_data_list_len])
             return list()
         # headers to match - 
         # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
         # find the next index of cyto_result
-        next_idx = data_list_len
-        for idx, val in enumerate(data_list):
+        next_idx = mutable_data_list_len
+        for idx, val in enumerate(mutable_data_list):
             if idx > 0:
                 if val[1] == 'cyto_result':
                     next_idx = idx
                     break
-        for idx, val in enumerate(data_list):
+        for idx, val in enumerate(mutable_data_list):
             if idx == next_idx:
                 break
             # print(idx, val)
@@ -554,22 +557,22 @@ class ProcessEvents(object):
             elif val[1] == constants.EventConstants.FOLLOWUP_NAME:
                 work_dict[constants.EventConstants.FOLLOWUP_NAME] = val[2]
             else:
-                self.log_mrn_error(mrn, 'data_list error:\n' + json.dumps(data_list, indent=2))
+                self.log_mrn_error(mrn, 'mutable_data_list error:\n' + json.dumps(mutable_data_list, indent=2))
 
         # work_dict is full - make a result
         result = list(work_dict.values())
         # shrink the list
-        del(data_list[0:next_idx])
+        del(mutable_data_list[0:next_idx])
         return result
     
-    def output_wide_row(self, writer, mrn, data_list):
+    def output_wide_row(self, writer, mrn, mutable_data_list):
         row = [mrn]
         demo_data = self.mrn_facts[mrn]
         row = row + demo_data
-        data_length = len(data_list)
+        data_length = len(mutable_data_list)
         while data_length > 0:
-            pathway = self.make_one_pathway(mrn, data_list)
-            data_length = len(data_list)
+            pathway = self.make_one_pathway(mrn, mutable_data_list)
+            data_length = len(mutable_data_list)
             pathway_len = len(pathway)
             if pathway_len > 1:
                 # make_one_pathway() will log messages before returning and empty pathway
@@ -588,7 +591,7 @@ class ProcessEvents(object):
                 writer.writerow(header)
                 last_mrn = ''
                 line_count = 0
-                data_list = []
+                mutable_data_list = []
                 for row in reader:
                     if line_count == 0:
                         # skip header line
@@ -596,16 +599,16 @@ class ProcessEvents(object):
                     else:
                         mrn = row[0]
                         if mrn != last_mrn:
-                            if last_mrn != '' and len(data_list) > 0:
-                                self.output_wide_row(writer, last_mrn, data_list)
-                                data_list.clear()
-                                data_list.append([row[1], row[3], row[4]])
+                            if last_mrn != '' and len(mutable_data_list) > 0:
+                                self.output_wide_row(writer, last_mrn, mutable_data_list)
+                                mutable_data_list.clear()
+                                mutable_data_list.append([row[1], row[3], row[4]])
                             else:
-                                data_list.append([row[1], row[3], row[4]])
+                                mutable_data_list.append([row[1], row[3], row[4]])
                             last_mrn = mrn
                         else:
-                            data_list.append([row[1], row[3], row[4]])
-                if len(data_list) > 0:
-                    self.output_wide_row(writer, last_mrn, data_list)
+                            mutable_data_list.append([row[1], row[3], row[4]])
+                if len(mutable_data_list) > 0:
+                    self.output_wide_row(writer, last_mrn, mutable_data_list)
                 print(f'create_wide_file processed {line_count} screened lines.') 
 
