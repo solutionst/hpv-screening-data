@@ -520,7 +520,7 @@ class ProcessEvents(object):
                 break
   
         if first_idx != 0:
-            self.log_mrn_info(mrn, 'bad first_idx')
+            self.log_mrn_info(mrn, 'bad first_idx: ' + json.dumps(data_list))
             del(data_list[0:first_idx])
             first_idx = 0
         entry = data_list[first_idx]
