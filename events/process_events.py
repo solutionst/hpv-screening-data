@@ -147,7 +147,7 @@ class ProcessEvents(object):
                     dead_str = row[self.demo_deceased_date]
                     if dead_str not in ('NULL', '00:00.0'):
                         try:
-                            work_date = datetime.datetime.strptime(dead_str, evt.DATE_FMT_PD)
+                            work_date = datetime.datetime.strptime(dead_str, ProcessEvents.DATE_FMT_PD)
                             deceased_date = work_date.date()
                         except:
                             # swallow
@@ -216,12 +216,10 @@ class ProcessEvents(object):
         df.to_csv(file_name, index=False)
 
     def make_dict_comment(self, hpv_value_dict):
-        work = json.dumps(hpv_value_dict)
+        work = json.dumps(hpv_value_dict, indent=2)
         return work
     
-    def test_cyto_ok(self, mrn, cyto_value_dict):
-        if len(cyto_value_dict) <= 1:
-            return True
+    # def clean_cyto_unsat(self, mrn, cyto_value_dict):
         # try to remove unsat accessions from dictionary and re-test
         keys = cyto_value_dict.keys()
         delete_keys = list()
@@ -230,13 +228,11 @@ class ProcessEvents(object):
             for key, val in access_dict.items():
                 if 'UNSAT' in val.upper():
                     delete_keys.append(accession_key)
+                    self.log_mrn_info(mrn, 'Will remove UNSAT from cyto_value_dict: \n' + json.dumps(cyto_value_dict, indent=2))
                     break
         for del_key in delete_keys:
             del cyto_value_dict[del_key]
-        if len(cyto_value_dict) <= 1:
-            return True
-        return False 
-    
+
     def test_hpv_ok(self, mrn, hpv_value_dict):
         result = True
         force_delete_keys = list()
@@ -245,7 +241,7 @@ class ProcessEvents(object):
         else:
             last_string = ""
             for accession_key in hpv_value_dict.keys():
-                test_string = json.dumps(hpv_value_dict[accession_key])
+                test_string = json.dumps(hpv_value_dict[accession_key], indent=2)
                 if 'COMMENTS' in test_string:
                     # self.log_mrn_info(mrn, 'Removing HPV COMMENTS: ' + test_string)
                     force_delete_keys.append(accession_key)
@@ -253,12 +249,12 @@ class ProcessEvents(object):
                     if last_string == "":
                         last_string = test_string
                     if last_string != test_string:
-                        self.log_mrn_info(mrn, 'Different HPV test_string: ' + test_string)
+                        self.log_mrn_info(mrn, 'Different HPV test_string: \n' + test_string)
                         result = False
                         break
                     last_string = test_string
                 else:
-                    self.log_mrn_error(mrn, "Unexpected hpv_value_dict: " + json.dumps(hpv_value_dict))
+                    self.log_mrn_error(mrn, "Unexpected hpv_value_dict: \n" + json.dumps(hpv_value_dict, indent=2))
         for del_key in force_delete_keys:
             del hpv_value_dict[del_key]
         if result and len(hpv_value_dict) >= 1:
@@ -273,7 +269,7 @@ class ProcessEvents(object):
         return result
     
     def test_results_ok(self, mrn, cyto_value_dict, hpv_value_dict):
-        cyto_ok = self.test_cyto_ok(mrn, cyto_value_dict)
+        cyto_ok = True
         hpv_ok = self.test_hpv_ok(mrn, hpv_value_dict)
         if cyto_ok and hpv_ok:
             return True
@@ -514,7 +510,7 @@ class ProcessEvents(object):
         work_dict = self.make_result_pathway_dict()
         data_list_len = len(data_list)
         if data_list_len == 0:
-            self.log_mrn_info(mrn, 'data_list length 0')
+            self.log_mrn_error(mrn, 'data_list length 0')
             return list()
         first_idx = 0
         # walk the data list looking for second entry of 'cyto_result'
@@ -558,7 +554,7 @@ class ProcessEvents(object):
             elif val[1] == constants.EventConstants.FOLLOWUP_NAME:
                 work_dict[constants.EventConstants.FOLLOWUP_NAME] = val[2]
             else:
-                print('foo error')
+                self.log_mrn_error(mrn, 'data_list error:\n' + json.dumps(data_list, indent=2))
 
         # work_dict is full - make a result
         result = list(work_dict.values())
@@ -570,10 +566,10 @@ class ProcessEvents(object):
         row = [mrn]
         demo_data = self.mrn_facts[mrn]
         row = row + demo_data
-        pathway_len = len(data_list)
-        while pathway_len > 0:
+        data_length = len(data_list)
+        while data_length > 0:
             pathway = self.make_one_pathway(mrn, data_list)
-            # data_length = len(data_list)
+            data_length = len(data_list)
             pathway_len = len(pathway)
             if pathway_len > 1:
                 # make_one_pathway() will log messages before returning and empty pathway
@@ -600,7 +596,7 @@ class ProcessEvents(object):
                     else:
                         mrn = row[0]
                         if mrn != last_mrn:
-                            if last_mrn != '':
+                            if last_mrn != '' and len(data_list) > 0:
                                 self.output_wide_row(writer, last_mrn, data_list)
                                 data_list.clear()
                                 data_list.append([row[1], row[3], row[4]])

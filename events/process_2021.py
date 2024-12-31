@@ -2,6 +2,7 @@
 # This code is licensed under the MIT license (See LICENSE for details).
 import os
 import pandas as pd
+import json
 import csv
 import datetime
 import constants
@@ -58,31 +59,25 @@ class Process2021(ProcessEvents):
         # captures messages and is post-processed for later
         self.mrn_message_dict = dict()
 
+        
+        #  Order of severity
+        self.cyto_severity = ['HSIL', 'ASCH', 'AGC', 'LSIL', 'ASCUS', 'NILM-NOTZ', 'NILM', 'Unsat', 'None', 'NotReported', 'cyto_unknown']
         # set up the logger
         self.log_create()
-
-    def determine_cyto_result(self, mrn, cyto_value_dict):
-        assert len (cyto_value_dict) <= 1
+    
+    def determine_cyto_for_accession(self, mrn, cyto_accession):
         cyto = 'cyto_unknown'
-        if len(cyto_value_dict) == 0:
-            cyto = 'no_cyto'
-            return cyto
-        # get the accession ID for the single key in the dictionary
-        cyto_accession = list(cyto_value_dict.keys())[0]
-        work_dict = cyto_value_dict[cyto_accession]
-        
-        # if len(work_dict) == 1 and 'RECEIVED' in work_dict.keys[0].upper():
-        if len(work_dict) == 1 and 'RECEIVED' in list(work_dict.values())[0].upper():
+        if 'RECEIVED' in list(cyto_accession.values())[0].upper():
              cyto = 'NotReported'
         
         # transformation zone
         t_zone_present = True
-        if 'ADEQ' in work_dict.keys():
-            adeq_val = work_dict['ADEQ']
+        if 'ADEQ' in cyto_accession.keys():
+            adeq_val = cyto_accession['ADEQ']
             if 'zone absent' in adeq_val:
                 adeq_val = False
-        if 'INTER' in work_dict.keys():
-            val = work_dict['INTER']
+        if 'INTER' in cyto_accession.keys():
+            val = cyto_accession['INTER']
             if 'ASC-H' in val:
                 cyto = 'ASCH'
             elif 'ASC-US' in val:
@@ -111,10 +106,53 @@ class Process2021(ProcessEvents):
                 cyto = 'NILM'
             elif 'Unsatisfactory' in val:
                 cyto = 'Unsat'
+            elif 'unsatisfactory' in val:
+                cyto = 'Unsat'
         if cyto == 'cyto_unknown':
-            self.log_mrn_error(mrn, 'cyto_unknown' + self.make_dict_comment(cyto_value_dict))
+            self.log_mrn_error(mrn, 'cyto_unknown' + self.make_dict_comment(cyto_accession))
         return cyto
-    
+
+    def determine_cyto_severity(self, mrn, cyto_list):
+        # most common case
+        if len(cyto_list) == 1:
+            return cyto_list[0]
+        
+        high_severity = -1
+        severity = -1
+        highest_idx = -1
+        for i in range(0, len(cyto_list) - 1):
+            try:
+                severity = self.cyto_severity.index(cyto_list[i])
+                if severity > high_severity:
+                    highest_idx = i
+                    high_severity = severity
+            except ValueError as e:
+                self.log_mrn_error(mrn, 'ValueError for list: ' + str(e) + 'List: \n' + json.dumps(cyto_list, indent=2))
+                return 'cyto_unknown'
+        if highest_idx >= 0 and highest_idx < len(cyto_list):
+            return cyto_list[highest_idx]
+        else:
+            self.log_mrn_error(mrn, 'Bad highest index for list: ' + cyto_list)
+            return 'cyto_unknown'
+
+
+    def determine_cyto_result(self, mrn, cyto_value_dict):
+        if len(cyto_value_dict) == 0:
+            cyto = 'no_cyto'
+            return cyto
+        
+        cyto_list = list()
+        for key in cyto_value_dict.keys():
+            cyto_list.append(self.determine_cyto_for_accession(mrn, cyto_value_dict[key]))
+
+        if len(cyto_list) == 0:
+                work = json.dumps(cyto_value_dict, indent=2)
+                self.log_mrn_error(mrn, 'No result for dict: \n' + work )
+                return 'no_cyto'
+        else:
+            cyto = self.determine_cyto_severity(mrn, cyto_list)
+            return cyto
+
     def determine_results(self, mrn, age, cyto_value_dict, hpv_value_dict):
         assert len(hpv_value_dict) <= 1
         cyto = self.determine_cyto_result(mrn, cyto_value_dict)
