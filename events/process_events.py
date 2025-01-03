@@ -219,20 +219,6 @@ class ProcessEvents(object):
         work = json.dumps(hpv_value_dict, indent=2)
         return work
     
-    # def clean_cyto_unsat(self, mrn, cyto_value_dict):
-        # try to remove unsat accessions from dictionary and re-test
-        keys = cyto_value_dict.keys()
-        delete_keys = list()
-        for accession_key in keys:
-            access_dict = cyto_value_dict[accession_key]
-            for key, val in access_dict.items():
-                if 'UNSAT' in val.upper():
-                    delete_keys.append(accession_key)
-                    self.log_mrn_info(mrn, 'Will remove UNSAT from cyto_value_dict: \n' + json.dumps(cyto_value_dict, indent=2))
-                    break
-        for del_key in delete_keys:
-            del cyto_value_dict[del_key]
-
     def test_hpv_ok(self, mrn, hpv_value_dict):
         result = True
         force_delete_keys = list()
@@ -243,13 +229,14 @@ class ProcessEvents(object):
             for accession_key in hpv_value_dict.keys():
                 test_string = json.dumps(hpv_value_dict[accession_key], indent=2)
                 if 'COMMENTS' in test_string:
-                    # self.log_mrn_info(mrn, 'Removing HPV COMMENTS: ' + test_string)
+                    force_delete_keys.append(accession_key)
+                elif 'Invalid' in test_string:
                     force_delete_keys.append(accession_key)
                 elif accession_key not in force_delete_keys:
                     if last_string == "":
                         last_string = test_string
                     if last_string != test_string:
-                        self.log_mrn_info(mrn, 'Different HPV test_string: \n' + test_string)
+                        self.log_mrn_info(mrn, 'Case removed from output. Different HPV test_string:\n' + test_string + '\nlast_string:\n' + last_string)
                         result = False
                         break
                     last_string = test_string
@@ -393,7 +380,7 @@ class ProcessEvents(object):
                         if 'SEE TEXT' in value.upper():
                             value = row[6]
                         delta = collection_date - last_date
-                        if mrn != last_mrn or delta.days >constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME:
+                        if mrn != last_mrn or delta.days > constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME:
                             if last_mrn != '':
                                 # new patient or date - output values
                                 self.output_row(last_mrn, last_row, out_writer, cyto_value_dict, hpv_value_dict)
@@ -510,36 +497,24 @@ class ProcessEvents(object):
         work_dict = self.make_result_pathway_dict()
         work_len = len(work_dict)
         mutable_data_list_len = len(mutable_data_list)
-        if mutable_data_list_len > work_len:
-            self.log_mrn_info(mrn, 'long mutable list: \n' + '\n  '.join(map(str, mutable_data_list)))
         if mutable_data_list_len == 0:
             self.log_mrn_error(mrn, 'mutable_data_list length 0')
             return list()
         first_idx = 0
-        # walk the data list looking for second entry of 'cyto_result'
+        next_idx = mutable_data_list_len
+        first_date = datetime.datetime.strptime(mutable_data_list[0][0], ProcessEvents.DATE_FMT_PD)
+        next_date = first_date
+        # walk the data list looking for date change
         for idx, val in enumerate(mutable_data_list):
-            if val[1] == 'cyto_result':
-                first_idx = idx
+            next_date = datetime.datetime.strptime(val[0], ProcessEvents.DATE_FMT_PD)
+            delta = next_date - first_date
+            if delta.days > constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME:
+                # found next path
+                next_idx = idx
                 break
-  
-        if first_idx != 0:
-            self.log_mrn_info(mrn, 'bad first_idx: ' + json.dumps(mutable_data_list))
-            del(mutable_data_list[0:first_idx])
-            first_idx = 0
-        entry = mutable_data_list[first_idx]
-        if entry[1] != 'cyto_result':
-            self.log_mrn_info(mrn, 'corrected mutable_data_list does not start with cyto_result')
-            del(mutable_data_list[0:mutable_data_list_len])
-            return list()
+            
         # headers to match - 
         # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
-        # find the next index of cyto_result
-        next_idx = mutable_data_list_len
-        for idx, val in enumerate(mutable_data_list):
-            if idx > 0:
-                if val[1] == 'cyto_result':
-                    next_idx = idx
-                    break
         for idx, val in enumerate(mutable_data_list):
             if idx == next_idx:
                 break
