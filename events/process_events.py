@@ -268,6 +268,109 @@ class ProcessEvents(object):
                 msg += '-hpv values bad'
             self.log_mrn_error(mrn, msg)
             return False
+        
+    def determine_cyto_severity(self, mrn, cyto_list):
+        # most common case
+        if len(cyto_list) == 1:
+            return cyto_list[0]
+        
+        high_severity = -1
+        severity = -1
+        highest_idx = -1
+        for i in range(0, len(cyto_list) - 1):
+            try:
+                severity = self.cyto_severity.index(cyto_list[i])
+                if severity > high_severity:
+                    highest_idx = i
+                    high_severity = severity
+            except ValueError as e:
+                self.log_mrn_error(mrn, 'ValueError for list: ' + str(e) + 'List: \n' + json.dumps(cyto_list, indent=2))
+                return 'cyto_unknown'
+        if highest_idx >= 0 and highest_idx < len(cyto_list):
+            return cyto_list[highest_idx]
+        else:
+            self.log_mrn_error(mrn, 'Bad highest index for list: ' + cyto_list)
+            return 'cyto_unknown'
+
+    def determine_cyto_for_accession(self, mrn, cyto_accession):
+        cyto = 'cyto_unknown'
+        if 'RECEIVED' in list(cyto_accession.values())[0].upper():
+             cyto = 'NotReported'
+        
+        # transformation zone
+        t_zone_present = True
+        if 'ADEQ' in cyto_accession.keys():
+            adeq_val = cyto_accession['ADEQ']
+            if 'zone absent' in adeq_val:
+                t_zone_present = False
+        # if 'TGYN' in cyto_accession.keys():
+        #     val = cyto_accession['TGYN']
+        #     if 'for neoplastic cells: Negative' in val:
+        #         cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+        #     elif 'for neoplastic cells:  Negative.' in val:
+        #         cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+        if 'INTER' in cyto_accession.keys() or 'TGYN' in cyto_accession.keys():
+            val = ''
+            if 'INTER' in cyto_accession.keys():
+                val = cyto_accession['INTER']
+            elif 'TGYN' in cyto_accession.keys():
+                val = cyto_accession['TGYN']
+            if 'ASC-H' in val:
+                cyto = 'ASCH'
+            elif 'ASC-US' in val:
+                cyto = 'ASCUS'
+            elif 'Atypical squamous cells of undetermined significance are present.' in val:
+                cyto = 'ASCUS'
+            elif 'Rare atypical squamous cells of undetermined significance are present.' in val:
+                cyto = 'ASCUS'
+            elif 'Low grade squamous intraepithelial lesion' in val:
+                cyto = 'LSIL'
+            elif 'Negative for intraepithelial lesion or malignancy' in val:
+                cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+            elif 'for neoplastic cells: Negative' in val:
+                cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+            elif 'for neoplastic cells:  Negative.' in val:
+                cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+            elif 'Atypical glandular cells' in val:
+                cyto = 'AGC'
+            elif 'Atypical endometrial cells present' in val:
+                cyto = 'AGC'
+            elif 'Atypical endocervical cells present' in val:
+                cyto = 'AGC'
+            elif 'High grade squamous intraepithelial lesion' in val:
+                cyto = 'HSIL'
+            elif 'Squamous epithelial atrophy' in val:
+                cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+            elif 'No malignant cells identified' in val:
+                cyto = 'NILM' if t_zone_present else 'NILM-NOTZ'
+            elif 'Satisfactory for evaluation. Transformation zone present' in val:
+                cyto = 'NILM'
+            elif 'Non-diagnostic' in val:
+                cyto = 'Unsat'
+            elif 'Unsatisfactory' in val:
+                cyto = 'Unsat'
+            elif 'unsatisfactory' in val:
+                cyto = 'Unsat'
+        if cyto == 'cyto_unknown':
+            self.log_mrn_error(mrn, 'cyto_unknown' + self.make_dict_comment(cyto_accession))
+        return cyto
+    
+    def determine_cyto_result(self, mrn, cyto_value_dict):
+        if len(cyto_value_dict) == 0:
+            cyto = 'no_cyto'
+            return cyto
+        
+        cyto_list = list()
+        for key in cyto_value_dict.keys():
+            cyto_list.append(self.determine_cyto_for_accession(mrn, cyto_value_dict[key]))
+
+        if len(cyto_list) == 0:
+                work = json.dumps(cyto_value_dict, indent=2)
+                self.log_mrn_error(mrn, 'No result for dict: \n' + work )
+                return 'no_cyto'
+        else:
+            cyto = self.determine_cyto_severity(mrn, cyto_list)
+            return cyto
 
     def code_hpv_value(self, mrn, key, hpv_value_dict):
         if len(hpv_value_dict) == 0:
@@ -368,6 +471,7 @@ class ProcessEvents(object):
                         # skip header line
                         line_count += 1
                     else:
+                        has_see_text = False
                         line_count += 1
                         mrn = row[0]
                         date_str = row[1]
@@ -379,6 +483,7 @@ class ProcessEvents(object):
                         value = row[5]
                         if 'SEE TEXT' in value.upper():
                             value = row[6]
+                            has_see_text = True
                         delta = collection_date - last_date
                         if mrn != last_mrn or delta.days > constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME:
                             if last_mrn != '':
@@ -390,7 +495,7 @@ class ProcessEvents(object):
                             last_date = collection_date
                         if order_code in ['TGYNS', 'TDGYNS', 'CYTONG', 'TGYN']:
                             self.add_cyto_value(accession, result_code, value.strip(), cyto_value_dict)
-                        elif order_code == 'HPVDNA':
+                        elif order_code == 'HPVDNA' and not has_see_text:
                             self.add_hpv_value(accession, result_code, value.strip(), hpv_value_dict)
                         else:
                             print(f'unexpected order_code {order_code} for {mrn}')
