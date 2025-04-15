@@ -122,8 +122,8 @@ class Process2021(ProcessEvents):
                 screen = 'Normal-3'
             elif cyto == 'NILM-NOTZ' and hpv == '':
                 screen = 'Normal-3'
-            elif cyto == 'NILM-NOTZ' and hpv == '':
-                screen = 'Low-1'
+            elif cyto == 'NILM-NOTZ' and hpv == 'Pos':
+                screen = 'High'
             elif cyto == 'NILM':
                 screen = 'Normal-3'
             elif cyto == 'no_cyto' and hpv == 'Neg':
