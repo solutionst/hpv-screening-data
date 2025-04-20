@@ -619,12 +619,14 @@ class ProcessEvents(object):
                 next_idx = idx
                 past_screen_idx = idx
                 break
-
         # push next_idx past followup, cyto, and leep, if present
         for idx in range(past_screen_idx, mutable_data_list_len):
             work  = mutable_data_list[idx][1]
             if not work.startswith('cyto') and not work.startswith('hpv'):
                 next_idx += 1
+
+        # censor the screening tests if they occurred on the same date as the procedure
+        self.censor_screening_dates(mutable_data_list, next_idx)
             
         # headers to match - 
         # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
@@ -653,6 +655,30 @@ class ProcessEvents(object):
         del(mutable_data_list[0:next_idx])
         return result
     
+    def censor_screening_dates(self, mutable_data_list, next_idx):
+        list_len = len(mutable_data_list)
+        # no work to do if the list length does not include a colpo or leep
+        if list_len <= 6:
+            return
+        # only censor if the initial result is cyto_result
+        first_result = mutable_data_list[0][1]
+        if first_result != 'cyto_result':
+            return
+
+        # capture the reference date for screening (which should have been normalized)
+        ref_date_string = mutable_data_list[0][0]
+        # there is an error if the screening dates do not match
+        for idx in range(0, 5):
+            if ref_date_string != mutable_data_list[idx][0]:
+                exit(42)
+        
+        # if the the reference date matches the procedure date, set the screening results to Censored-NA
+        procedure_date_string = mutable_data_list[6][0]
+        if procedure_date_string == ref_date_string:
+            for idx in range(0, 5):
+                mutable_data_list[idx][2] = 'Censored-NA'
+        return
+
     def output_wide_row(self, writer, mrn, mutable_data_list):
         row = [mrn]
         demo_data = self.mrn_facts[mrn]
