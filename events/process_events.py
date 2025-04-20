@@ -605,18 +605,26 @@ class ProcessEvents(object):
         if mutable_data_list_len == 0:
             self.log_mrn_error(mrn, 'mutable_data_list length 0')
             return list()
-        first_idx = 0
+        past_screen_idx = 0
         next_idx = mutable_data_list_len
         first_date = datetime.datetime.strptime(mutable_data_list[0][0], ProcessEvents.DATE_FMT_PD)
         next_date = first_date
-        # walk the data list looking for date change
+
+        # walk the data list looking for date change in screening dates
         for idx, val in enumerate(mutable_data_list):
             next_date = datetime.datetime.strptime(val[0], ProcessEvents.DATE_FMT_PD)
             delta = next_date - first_date
-            if delta.days > constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME:
+            if delta.days > constants.EventConstants.DELTA_DAYS_CYTO_HPV_SAME or idx > 4:
                 # found next path
                 next_idx = idx
+                past_screen_idx = idx
                 break
+
+        # push next_idx past followup, cyto, and leep, if present
+        for idx in range(past_screen_idx, mutable_data_list_len):
+            work  = mutable_data_list[idx][1]
+            if not work.startswith('cyto') and not work.startswith('hpv'):
+                next_idx += 1
             
         # headers to match - 
         # 'date_hpv_10', 'result_hpv_10', 'result_hpv18_10', 'result_hpv16_10', 'result_hpv_othr_10', 'date_cyto_10', 'result_cyto_10', 'triage_10', 'date_colpo_10', 'date_leep_10'
