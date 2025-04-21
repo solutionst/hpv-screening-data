@@ -590,8 +590,8 @@ class ProcessEvents(object):
         result[constants.EventConstants.CYTO_NAME] = ''
         
         result[constants.EventConstants.FOLLOWUP_NAME] = ''
-        result['date_leep'] = ''
         result['date_colpo'] = ''
+        result['date_leep'] = ''
         # print('----')
         # print(list(result.keys()))
         return result
