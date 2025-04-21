@@ -622,8 +622,9 @@ class ProcessEvents(object):
         # push next_idx past followup, cyto, and leep, if present
         for idx in range(past_screen_idx, mutable_data_list_len):
             work  = mutable_data_list[idx][1]
-            if not work.startswith('cyto') and not work.startswith('hpv'):
-                next_idx += 1
+            if work.startswith('cyto') or work.startswith('hpv'):
+                break
+            next_idx += 1
 
         # censor the screening tests if they occurred on the same date as the procedure
         self.censor_screening_dates(mutable_data_list, next_idx)
@@ -671,12 +672,14 @@ class ProcessEvents(object):
         for idx in range(0, 5):
             if ref_date_string != mutable_data_list[idx][0]:
                 exit(42)
-        
+
         # if the the reference date matches the procedure date, set the screening results to Censored-NA
         procedure_date_string = mutable_data_list[6][0]
         if procedure_date_string == ref_date_string:
-            for idx in range(0, 5):
-                mutable_data_list[idx][2] = 'Censored-NA'
+            for idx in range(0, next_idx - 1):
+                work = mutable_data_list[idx][1]
+                if work.startswith('hpv') or work.startswith('cyto') or work.startswith('follow'):
+                    mutable_data_list[idx][2] = 'Censored-NA'
         return
 
     def output_wide_row(self, writer, mrn, mutable_data_list):
