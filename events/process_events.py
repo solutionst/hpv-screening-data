@@ -503,7 +503,7 @@ class ProcessEvents(object):
                 self.output_row(last_mrn, last_row, out_writer, cyto_value_dict, hpv_value_dict)
             print(f'Processed {line_count} screened lines.')
 
-    def process_followup_events(self, in_file_name, out_file_name, event_idx, event_name):
+    def process_followup_lab_events(self, in_file_name, out_file_name, event_idx, event_name):
         line_count = 0
         with open(in_file_name, 'r') as f:
             with open (out_file_name, 'w', newline='', encoding='utf-8') as out:
@@ -529,6 +529,32 @@ class ProcessEvents(object):
         df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True]).drop_duplicates(subset=['mrn', 'collection_date'])
         df.to_csv(out_file_name, index=False)
     
+    def process_followup_narrative_events(self, in_file_name, out_file_name, event_idx, event_name):
+        line_count = 0
+        with open(in_file_name, 'r') as f:
+            with open (out_file_name, 'w', newline='', encoding='utf-8') as out:
+                out_writer = csv.writer(out, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                out_writer.writerow(constants.EventConstants.EVENT_HEADER_LIST)
+                reader = csv.reader(f)
+                for row in reader:
+                    if line_count == 0:
+                        # skip header line
+                        line_count += 1
+                    else:
+                        line_count += 1
+                        mrn = row[1]
+                        if mrn in self.screening_mrn:
+                            date_str = row[3]
+                            the_date = datetime.datetime.strptime(date_str, '%m/%d/%Y').date()
+                            result_date = datetime.datetime.strftime(the_date, ProcessEvents.DATE_FMT_PD)
+                            tuple = (mrn, result_date, event_idx, event_name, 'performed')
+                            out_writer.writerow(tuple)
+        print(f'Processed {event_name} for {line_count} lines.')
+        # sort the results
+        df = pd.read_csv(out_file_name)
+        df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True]).drop_duplicates(subset=['mrn', 'collection_date'])
+        df.to_csv(out_file_name, index=False)
+    
     def consolidate_and_sort(self):
         cyto = pd.read_csv(self.cyto_file_name)
         hpvdna = pd.read_csv(self.hpvdna_file_name)
@@ -539,9 +565,11 @@ class ProcessEvents(object):
 
         followup = pd.read_csv(self.followup_file_name)
         colpo = pd.read_csv(self.colpo_file_name)
+        colpo_narrative = pd.read_csv(self.colpo_narrative_file_name)
         leep = pd.read_csv(self.leep_file_name)
-        df = pd.concat([cyto, hpvdna, hpv18, hpv16, hpvothr, followup, colpo, leep])
-        df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True])
+        leep_narrative = pd.read_csv(self.leep_narrative_file_name)
+        df = pd.concat([cyto, hpvdna, hpv18, hpv16, hpvothr, followup, colpo, colpo_narrative, leep, leep_narrative])
+        df = df.sort_values(['mrn', 'collection_date', 'event_idx'], ascending=[True, True, True]).drop_duplicates(subset=['mrn', 'collection_date', 'event_idx'])
         print(df.head())
         df.to_csv(self.merged_events_name, index = False)
         work = df.groupby(['mrn']).size().reset_index(name='counts')

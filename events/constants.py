@@ -27,9 +27,15 @@ class EventConstants:
     COLPO_IDX = 500
     COLPO_NAME = 'colpo'
     COLPO_FILE_NAME = str(COLPO_IDX) +  '_' + COLPO_NAME + '.csv'
+    COLPO_NARRATIVE_IDX = 500
+    COLPO_NARRATIVE_NAME = 'colpo_narrative'
+    COLPO_NARRATIVE_FILE_NAME = str(COLPO_NARRATIVE_IDX) +  '_' + COLPO_NARRATIVE_NAME + '.csv'
     LEEP_IDX = 600
     LEEP_NAME = 'leep'
     LEEP_FILE_NAME = str(LEEP_IDX) +  '_' + LEEP_NAME + '.csv'
+    LEEP_NARRATIVE_IDX = 600
+    LEEP_NARRATIVE_NAME = 'leep_narrative'
+    LEEP_NARRATIVE_FILE_NAME = str(LEEP_IDX) +  '_' + LEEP_NARRATIVE_NAME + '.csv'
     MERGED_IDX = 800
     MERGED_FILE_NAME = str(MERGED_IDX) +  '_merged_events.csv'
     WIDE_IDX = 900

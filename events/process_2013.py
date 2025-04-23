@@ -22,7 +22,8 @@ class Process2013(ProcessEvents):
             os.makedirs(self.out_directory)
 
         self.log_file_name = os.path.join(self.out_directory, 'log_2013.csv')
-        self.in_file_name = os.path.join(self.in_directory, 'hpi10029_cervical_and_cyto_labresults_06052024.csv')
+        self.in_file_name = os.path.join(self.in_directory, 'hpi10029_cervical_and_cyto_labresults_2013_to_2019.csv')
+        self.in_file_name_narrative = os.path.join(self.in_directory, 'hpi10029_cervical_and_cyto_narrativeresults_2013_to_2019.csv')
         self.out_file_name = os.path.join(self.out_directory, 'screen_details.csv')
         self.demographic_file_name = os.path.join(self.in_directory, 'hpi10029_Patient_demographics_2013_to_2019.csv')
         self.demo_mrn = 1
@@ -45,14 +46,18 @@ class Process2013(ProcessEvents):
         self.hpvothr_file_name = os.path.join(self.out_directory, constants.EventConstants.HPVOTHR_FILE_NAME)
         self.followup_file_name = os.path.join(self.out_directory, constants.EventConstants.FOLLOWUP_FILE_NAME)
         self.colpo_file_name = os.path.join(self.out_directory, constants.EventConstants.COLPO_FILE_NAME)
+        self.colpo_narrative_file_name = os.path.join(self.out_directory, constants.EventConstants.COLPO_NARRATIVE_FILE_NAME)
         self.leep_file_name = os.path.join(self.out_directory, constants.EventConstants.LEEP_FILE_NAME)
+        self.leep_narrative_file_name = os.path.join(self.out_directory, constants.EventConstants.LEEP_NARRATIVE_FILE_NAME)
         self.dob_file_name  = os.path.join(self.out_directory, constants.EventConstants.DOB_FILE_NAME)
         self.merged_events_name = os.path.join(self.out_directory, constants.EventConstants.MERGED_FILE_NAME)
         self.wide_file_name = os.path.join(self.out_directory, constants.EventConstants.WIDE_FILE_NAME)
 
 
-        self.leep_in_file_name = os.path.join(self.in_directory, 'hpi10029_LEEP_labresults.csv')
-        self.colpo_in_file_name = os.path.join(self.in_directory, 'hpi10029_colpo_labresults.csv')
+        self.leep_in_file_name = os.path.join(self.in_directory, 'hpi10029_LEEP_labresults_2013_to_2019.csv')
+        self.leep_in_file_name_narrative = os.path.join(self.in_directory, 'hpi10029_LEEP_narrativeresults_2013_to_2019.csv')
+        self.colpo_in_file_name = os.path.join(self.in_directory, 'hpi10029_colposcopy_labresults_2013_to_2019.csv')
+        self.colpo_in_file_name_narrative = os.path.join(self.in_directory, 'hpi10029_colposcopy_narrativeresults_2013_to_2019.csv')
 
         # self.datetime_fmt = '%m/%d/%Y %H:%M'
         # self.date_fmt = '%m/%d/%Y'
@@ -176,8 +181,10 @@ class Process2013(ProcessEvents):
         self.summarize_results()
         detail_df = self.sort_detail_and_save()
         self.create_lab_event_files(detail_df)
-        self.process_followup_events(self.leep_in_file_name, self.leep_file_name, constants.EventConstants.LEEP_IDX, constants.EventConstants.LEEP_NAME)
-        self.process_followup_events(self.colpo_in_file_name, self.colpo_file_name, constants.EventConstants.COLPO_IDX, constants.EventConstants.COLPO_NAME)
+        self.process_followup_lab_events(self.leep_in_file_name, self.leep_file_name, constants.EventConstants.LEEP_IDX, constants.EventConstants.LEEP_NAME)
+        self.process_followup_lab_events(self.colpo_in_file_name, self.colpo_file_name, constants.EventConstants.COLPO_IDX, constants.EventConstants.COLPO_NAME)
+        self.process_followup_narrative_events(self.leep_in_file_name_narrative, self.leep_narrative_file_name, constants.EventConstants.LEEP_NARRATIVE_IDX, constants.EventConstants.LEEP_NAME)
+        self.process_followup_narrative_events(self.colpo_in_file_name_narrative, self.colpo_narrative_file_name, constants.EventConstants.COLPO_NARRATIVE_IDX, constants.EventConstants.COLPO_NAME)
         self.consolidate_and_sort()
         self.create_wide_file()
         
